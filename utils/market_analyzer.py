@@ -214,6 +214,16 @@ class MarketAnalyzer:
         if categoria in self.mercado_subcategorias:
             del self.mercado_subcategorias[categoria]
 
+    def remover_periodo_categoria(self, categoria, periodo):
+        if categoria in self.mercado_categoria:
+            self.mercado_categoria[categoria] = [
+                item for item in self.mercado_categoria[categoria]
+                if item['periodo'] != periodo
+            ]
+            # Se não sobrar nenhum período, removemos a categoria
+            if not self.mercado_categoria[categoria]:
+                self.remover_mercado_categoria(categoria)
+
     def remover_mercado_subcategoria(self, categoria, subcategoria_nome):
         if categoria in self.mercado_subcategorias:
             self.mercado_subcategorias[categoria] = [

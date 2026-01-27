@@ -197,6 +197,63 @@ with st.sidebar:
         st.info(st.session_state.last_upload_info)
     
     st.markdown("---")
+    st.markdown("### 📥 Exportar Dados")
+    
+    if analyzer.cliente_data or analyzer.mercado_categoria:
+        # Criar Excel em memória
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Aba Cliente
+            if analyzer.cliente_data:
+                # Criar um formato similar ao template
+                cliente_rows = [
+                    ["", ""], ["", ""], ["", ""], ["", ""],
+                    ["Empresa", analyzer.cliente_data.get('empresa', '')],
+                    ["Categoria Macro", analyzer.cliente_data.get('categoria_principal', '')],
+                    ["Ticket Médio Geral", analyzer.cliente_data.get('ticket_medio', 0)],
+                    ["Margem Atual", analyzer.cliente_data.get('margem', 0)],
+                    ["Faturamento Médio 3M", analyzer.cliente_data.get('faturamento_3m', 0)],
+                    ["Unidades Médias 3M", analyzer.cliente_data.get('unidades_3m', 0)],
+                    ["Range Permitido", analyzer.cliente_data.get('range_permitido', 0.20)],
+                    ["Ticket Customizado", analyzer.cliente_data.get('ticket_custom', "")]
+                ]
+                pd.DataFrame(cliente_rows).to_excel(writer, sheet_name="Cliente", index=False, header=False)
+            
+            # Aba Mercado Categoria
+            cat_data = []
+            for cat, periods in analyzer.mercado_categoria.items():
+                for p in periods:
+                    cat_data.append({
+                        "Categoria": cat,
+                        "Periodo (texto)": p['periodo'],
+                        "Faturamento (R$)": p['faturamento'],
+                        "Unidades": p['unidades']
+                    })
+            if cat_data:
+                pd.DataFrame(cat_data).to_excel(writer, sheet_name="Mercado_Categoria", index=False, startrow=2)
+            
+            # Aba Mercado Subcategoria
+            sub_data = []
+            for cat, subs in analyzer.mercado_subcategorias.items():
+                for s in subs:
+                    sub_data.append({
+                        "Categoria": cat,
+                        "Subcategoria": s['subcategoria'],
+                        "Faturamento 6M (R$)": s['faturamento_6m'],
+                        "Unidades 6M": s['unidades_6m']
+                    })
+            if sub_data:
+                pd.DataFrame(sub_data).to_excel(writer, sheet_name="Mercado_Subcategoria", index=False, startrow=2)
+        
+        st.download_button(
+            label="📥 Baixar Planilha Atualizada",
+            data=output.getvalue(),
+            file_name=f"Analise_Mercado_{analyzer.cliente_data.get('empresa', 'Empresa')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+
+    st.markdown("---")
     if st.button("🗑️ Limpar Tudo (Zerar)", use_container_width=True, type="secondary"):
         st.session_state.analyzer = MarketAnalyzer()
         if 'last_upload_info' in st.session_state: del st.session_state['last_upload_info']
@@ -296,8 +353,12 @@ elif menu == "📈 Gestão de Categorias":
                             new_name = c1.text_input("Nome Categoria", value=cat)
                             new_fat = c2.text_input("Faturamento (R$)", value=str(row['faturamento']))
                             new_uni = c3.text_input("Unidades", value=str(row['unidades']))
-                            if st.form_submit_button("Salvar Alterações"):
+                            b1, b2 = st.columns(2)
+                            if b1.form_submit_button("💾 Salvar"):
                                 analyzer.editar_mercado_categoria(cat, new_name, row['periodo'], parse_large_number(new_fat), int(parse_large_number(new_uni)))
+                                st.rerun()
+                            if b2.form_submit_button("🗑️ Excluir Período", type="secondary"):
+                                analyzer.remover_periodo_categoria(cat, row['periodo'])
                                 st.rerun()
 
                 # Métricas da Categoria
