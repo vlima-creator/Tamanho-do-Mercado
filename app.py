@@ -76,8 +76,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Inicializar session state com verificação de compatibilidade
-if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'mercado_subcategorias') or not isinstance(st.session_state.analyzer.mercado_subcategorias, dict):
+# Inicializar session state com verificação robusta de métodos
+# Se o objeto na sessão não tiver o método 'calcular_limites_ticket', reinicializamos
+if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'calcular_limites_ticket'):
     st.session_state.analyzer = MarketAnalyzer()
     
     # Carregar dados iniciais se existirem
@@ -323,9 +324,13 @@ elif menu == "📊 Dashboard Executivo":
                 st.plotly_chart(fig_gauge, use_container_width=True)
                 
             with g2:
-                limite_inf, limite_sup = st.session_state.analyzer.calcular_limites_ticket(res['ticket_mercado'])
-                fig_ticket = criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], limite_inf, limite_sup)
-                st.plotly_chart(fig_ticket, use_container_width=True)
+                # Verificação de segurança para o método
+                if hasattr(st.session_state.analyzer, 'calcular_limites_ticket'):
+                    limite_inf, limite_sup = st.session_state.analyzer.calcular_limites_ticket(res['ticket_mercado'])
+                    fig_ticket = criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], limite_inf, limite_sup)
+                    st.plotly_chart(fig_ticket, use_container_width=True)
+                else:
+                    st.warning("Aguardando atualização do sistema de tickets...")
             
             st.markdown("---")
             st.markdown("#### 📈 Cenários de Crescimento")
