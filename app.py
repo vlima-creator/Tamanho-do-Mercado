@@ -174,7 +174,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
     
-    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v4")
+    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v5")
     if uploaded_file is not None:
         if st.button("🚀 Processar Planilha", use_container_width=True):
             if processar_excel(uploaded_file):
@@ -355,7 +355,8 @@ elif menu == "📊 Dashboard Executivo":
                 'Otimista': {'share_alvo': s_otim, 'label': f"{s_otim*100:.1f}%"}
             }
         
-        res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares if 'custom_shares' in locals() else None)
+        # CORREÇÃO: Garantir que custom_shares seja passado corretamente
+        res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares)
         
         if res:
             # Indicadores Principais
