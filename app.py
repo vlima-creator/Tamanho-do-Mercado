@@ -80,8 +80,8 @@ def safe_float(val):
 
 # --- INICIALIZAÇÃO ---
 
-# Garantir que o analyzer esteja sempre na sessão e persistente
-if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'calcular_limites_ticket'):
+# Garantir que o analyzer esteja sempre na sessão
+if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
 
 # --- LÓGICA DE IMPORTAÇÃO EXCEL ---
@@ -94,7 +94,7 @@ def processar_excel(file):
         # 1. Cliente
         df_cliente = pd.read_excel(file, sheet_name="Cliente", header=None)
         empresa = str(df_cliente.iloc[4, 1])
-        cat_macro = str(df_cliente.iloc[5, 1])
+        cat_macro_cliente = str(df_cliente.iloc[5, 1])
         ticket_medio = safe_float(df_cliente.iloc[6, 1])
         margem = safe_float(df_cliente.iloc[7, 1])
         fat_3m = safe_float(df_cliente.iloc[8, 1])
@@ -104,7 +104,7 @@ def processar_excel(file):
         ticket_custom = safe_float(ticket_c) if pd.notna(ticket_c) and str(ticket_c).strip() != "" else None
         
         temp_analyzer.set_cliente_data(
-            empresa=empresa, categoria=cat_macro, ticket_medio=ticket_medio,
+            empresa=empresa, categoria=cat_macro_cliente, ticket_medio=ticket_medio,
             margem=margem, faturamento_3m=fat_3m, unidades_3m=uni_3m,
             range_permitido=range_p, ticket_custom=ticket_custom
         )
@@ -131,13 +131,13 @@ def processar_excel(file):
                 )
                 count_sub += 1
         
-        # Atualizar o analyzer oficial na sessão
+        # ATUALIZAÇÃO CRÍTICA: Substituir o objeto na sessão
         st.session_state.analyzer = temp_analyzer
         st.session_state['data_version'] = datetime.now().timestamp()
         st.session_state['last_upload_info'] = f"Empresa: {empresa} | Macros: {count_cat} | Subs: {count_sub}"
         return True
     except Exception as e:
-        st.error(f"Erro detalhado no processamento: {str(e)}")
+        st.error(f"Erro no processamento: {str(e)}")
         return False
 
 # --- CSS CUSTOMIZADO ---
@@ -163,14 +163,12 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
     
-    # Usar um container para o uploader para evitar resets inesperados
-    with st.container():
-        uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_main")
-        if uploaded_file is not None:
-            if st.button("🚀 Processar Planilha", use_container_width=True, key="btn_process"):
-                if processar_excel(uploaded_file):
-                    st.success("Dados carregados com sucesso!")
-                    st.rerun()
+    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v2")
+    if uploaded_file is not None:
+        if st.button("🚀 Processar Planilha", use_container_width=True):
+            if processar_excel(uploaded_file):
+                st.success("Dados carregados!")
+                st.rerun()
     
     if 'last_upload_info' in st.session_state:
         st.info(st.session_state.last_upload_info)
@@ -183,6 +181,9 @@ with st.sidebar:
 
 # Header
 st.markdown('<div class="main-header">📊 Tamanho do Mercado</div>', unsafe_allow_html=True)
+
+# Referência curta para o analyzer da sessão
+analyzer = st.session_state.analyzer
 
 # ====================
 # SEÇÃO: INÍCIO
@@ -200,35 +201,33 @@ if menu == "🏠 Início":
     with col2:
         st.info("💡 **Dica**: O sistema agora aceita o modelo de planilha que você já utiliza, facilitando a migração dos dados!")
         
-    if not st.session_state.analyzer.cliente_data:
+    if not analyzer.cliente_data:
         st.warning("⚠️ Nenhum dado carregado. Suba uma planilha na barra lateral para começar.")
     else:
-        st.success(f"✅ Dados carregados para: **{st.session_state.analyzer.cliente_data.get('empresa', 'Empresa')}**")
+        st.success(f"✅ Dados carregados para: **{analyzer.cliente_data.get('empresa', 'Empresa')}**")
 
 # ====================
 # SEÇÃO: DADOS DO CLIENTE
 # ====================
 elif menu == "👤 Dados do Cliente":
     st.markdown("## 👤 Dados do Cliente")
-    
-    # Usar chaves dinâmicas baseadas na versão dos dados para forçar atualização dos campos
     ver = st.session_state.get('data_version', 0)
     
     with st.form("form_cliente"):
         col1, col2 = st.columns(2)
         with col1:
-            empresa = st.text_input("Nome da Empresa", value=st.session_state.analyzer.cliente_data.get('empresa', ''), key=f"emp_{ver}")
-            ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(st.session_state.analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f", key=f"tm_{ver}")
-            margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1, key=f"mg_{ver}")
+            empresa = st.text_input("Nome da Empresa", value=analyzer.cliente_data.get('empresa', ''), key=f"emp_{ver}")
+            ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f", key=f"tm_{ver}")
+            margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1, key=f"mg_{ver}")
         with col2:
-            fat_val = st.session_state.analyzer.cliente_data.get('faturamento_3m', 0.0)
+            fat_val = analyzer.cliente_data.get('faturamento_3m', 0.0)
             fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "", key=f"fat_{ver}")
-            uni_val = st.session_state.analyzer.cliente_data.get('unidades_3m', 0)
+            uni_val = analyzer.cliente_data.get('unidades_3m', 0)
             uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "", key=f"uni_{ver}")
-            range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('range_permitido', 0.20) * 100), key=f"rp_{ver}")
+            range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('range_permitido', 0.20) * 100), key=f"rp_{ver}")
         
         if st.form_submit_button("💾 Salvar Dados"):
-            st.session_state.analyzer.set_cliente_data(
+            analyzer.set_cliente_data(
                 empresa=empresa, categoria="Geral", ticket_medio=ticket_medio,
                 margem=margem, faturamento_3m=parse_large_number(fat_input), 
                 unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido
@@ -250,23 +249,26 @@ elif menu == "📈 Gestão de Categorias":
             uni_cat = col3.text_input("Unidades Mercado")
             if st.form_submit_button("Adicionar"):
                 if nova_cat:
-                    st.session_state.analyzer.add_mercado_categoria(nova_cat, periodo, parse_large_number(fat_cat), int(parse_large_number(uni_cat)))
+                    analyzer.add_mercado_categoria(nova_cat, periodo, parse_large_number(fat_cat), int(parse_large_number(uni_cat)))
                     st.rerun()
 
-    for cat in st.session_state.analyzer.mercado_categoria.keys():
-        df_cat = st.session_state.analyzer.get_mercado_categoria_df(cat).copy()
-        if not df_cat.empty:
-            df_cat['faturamento'] = df_cat['faturamento'].apply(format_br)
-            df_cat['ticket_medio'] = df_cat['ticket_medio'].apply(format_br)
-            st.write(f"**{cat}**")
-            st.dataframe(df_cat, use_container_width=True)
+    if analyzer.mercado_categoria:
+        for cat in analyzer.mercado_categoria.keys():
+            df_cat = analyzer.get_mercado_categoria_df(cat).copy()
+            if not df_cat.empty:
+                df_cat['faturamento'] = df_cat['faturamento'].apply(format_br)
+                df_cat['ticket_medio'] = df_cat['ticket_medio'].apply(format_br)
+                st.write(f"**{cat}**")
+                st.dataframe(df_cat, use_container_width=True)
+    else:
+        st.info("Nenhuma categoria macro cadastrada.")
 
 # ====================
 # SEÇÃO: SUBCATEGORIAS
 # ====================
 elif menu == "🎯 Mercado Subcategorias":
     st.markdown("## 🎯 Subcategorias")
-    categorias = list(st.session_state.analyzer.mercado_categoria.keys())
+    categorias = list(analyzer.mercado_categoria.keys())
     if not categorias:
         st.warning("Cadastre uma Categoria Macro primeiro!")
     else:
@@ -278,11 +280,11 @@ elif menu == "🎯 Mercado Subcategorias":
             uni_6m = col2.text_input("Unidades 6M")
             if st.form_submit_button("Adicionar Subcategoria"):
                 if sub:
-                    st.session_state.analyzer.add_mercado_subcategoria(cat_sel, sub, parse_large_number(fat_6m), int(parse_large_number(uni_6m)))
+                    analyzer.add_mercado_subcategoria(cat_sel, sub, parse_large_number(fat_6m), int(parse_large_number(uni_6m)))
                     st.rerun()
         
-        if cat_sel in st.session_state.analyzer.mercado_subcategorias:
-            df_sub = pd.DataFrame(st.session_state.analyzer.mercado_subcategorias[cat_sel]).copy()
+        if cat_sel in analyzer.mercado_subcategorias:
+            df_sub = pd.DataFrame(analyzer.mercado_subcategorias[cat_sel]).copy()
             df_sub['faturamento_6m'] = df_sub['faturamento_6m'].apply(format_br)
             df_sub['ticket_medio'] = df_sub['ticket_medio'].apply(format_br)
             st.dataframe(df_sub, use_container_width=True)
@@ -292,7 +294,7 @@ elif menu == "🎯 Mercado Subcategorias":
 # ====================
 elif menu == "📊 Dashboard Executivo":
     st.markdown("## 📊 Dashboard Executivo")
-    df_ranking = st.session_state.analyzer.gerar_ranking()
+    df_ranking = analyzer.gerar_ranking()
     if df_ranking.empty:
         st.info("Importe ou adicione dados para visualizar o dashboard.")
     else:
@@ -307,7 +309,7 @@ elif menu == "📊 Dashboard Executivo":
         st.markdown("---")
         sub_foco = st.selectbox("Análise Detalhada:", df_ranking['Subcategoria'].tolist())
         row_foco = df_ranking[df_ranking['Subcategoria'] == sub_foco].iloc[0]
-        res = st.session_state.analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco)
+        res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco)
         
         if res:
             m1, m2, m3, m4, m5 = st.columns(5)
@@ -315,12 +317,12 @@ elif menu == "📊 Dashboard Executivo":
             m2.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Mercado</div><div class="metric-value">R$ {format_br(res["ticket_mercado"])}</div></div>', unsafe_allow_html=True)
             m3.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Cliente</div><div class="metric-value">R$ {format_br(row_foco["Ticket Cliente"])}</div></div>', unsafe_allow_html=True)
             m4.markdown(f'<div class="metric-card"><div class="metric-label">Share Atual</div><div class="metric-value">{res["share_atual"]:.4f}%</div></div>', unsafe_allow_html=True)
-            m5.markdown(f'<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{st.session_state.analyzer.cliente_data.get("margem", 0)*100:.1f}%</div></div>', unsafe_allow_html=True)
+            m5.markdown(f'<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{analyzer.cliente_data.get("margem", 0)*100:.1f}%</div></div>', unsafe_allow_html=True)
             
             g1, g2 = st.columns(2)
             with g1: st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
             with g2:
-                l_inf, l_sup = st.session_state.analyzer.calcular_limites_ticket(res['ticket_mercado'])
+                l_inf, l_sup = analyzer.calcular_limites_ticket(res['ticket_mercado'])
                 st.plotly_chart(criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True)
             
             st.markdown("#### 📈 Cenários")
