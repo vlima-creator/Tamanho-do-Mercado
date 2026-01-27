@@ -87,9 +87,21 @@ def calcular_limites_ticket_local(ticket_mercado, range_permitido=0.20):
 
 # --- INICIALIZAÇÃO ---
 
-# Garantir que o analyzer esteja sempre na sessão
+# Garantir que o analyzer esteja sempre na sessão e atualizado
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
+else:
+    # Verificação de segurança: se o objeto na sessão não tem os métodos novos, forçamos a atualização
+    # sem perder os dados, se possível, ou reiniciamos para evitar o erro de AttributeError
+    if not hasattr(st.session_state.analyzer, 'editar_mercado_categoria'):
+        # Tentar migrar dados para um novo objeto que possui os métodos
+        old_data = st.session_state.analyzer
+        new_analyzer = MarketAnalyzer()
+        new_analyzer.cliente_data = getattr(old_data, 'cliente_data', {})
+        new_analyzer.mercado_categoria = getattr(old_data, 'mercado_categoria', {})
+        new_analyzer.mercado_subcategorias = getattr(old_data, 'mercado_subcategorias', {})
+        st.session_state.analyzer = new_analyzer
+        st.toast("🔄 Sistema atualizado para nova versão", icon="ℹ️")
 
 # --- LÓGICA DE IMPORTAÇÃO EXCEL ---
 
