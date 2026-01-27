@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Aplicação Streamlit - Tamanho do Mercado (Mercado Livre)
+Aplicação Streamlit - Tamanho do Mercado
 Dashboard interativo para análise estratégica de múltiplas categorias macro
 """
 
@@ -29,7 +29,7 @@ from utils.visualizations import (
 
 # Configuração da página
 st.set_page_config(
-    page_title="Tamanho do Mercado - Mercado Livre",
+    page_title="Tamanho do Mercado",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -41,25 +41,37 @@ st.markdown("""
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
-        color: #FFE600;
-        background-color: #2D3277;
+        color: #FFFFFF;
+        background-color: #1E1E1E;
         text-align: center;
-        padding: 1rem;
+        padding: 1.5rem;
         border-radius: 0.5rem;
         margin-bottom: 2rem;
+        border-bottom: 4px solid #3498db;
     }
     .sub-header {
         font-size: 1.5rem;
         font-weight: bold;
-        color: #2D3277;
+        color: #3498db;
         margin-top: 2rem;
         margin-bottom: 1rem;
     }
     .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
+        background-color: #262730;
+        padding: 1.5rem;
         border-radius: 0.5rem;
-        border-left: 5px solid #2D3277;
+        border-top: 3px solid #3498db;
+        text-align: center;
+    }
+    .metric-label {
+        font-size: 0.9rem;
+        color: #A0A0A0;
+        margin-bottom: 0.5rem;
+    }
+    .metric-value {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #FFFFFF;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -112,14 +124,10 @@ if 'menu_index' not in st.session_state:
     st.session_state.menu_index = 0
 
 # Header
-st.markdown('<div class="main-header">📊 Tamanho do Mercado - Mercado Livre</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📊 Tamanho do Mercado</div>', unsafe_allow_html=True)
 
 # Sidebar - Navegação
 with st.sidebar:
-    st.markdown("### 🌐 Canal: Mercado Livre")
-    st.info("Foco exclusivo em Mercado Livre ativado.")
-    
-    st.markdown("---")
     st.markdown("### 🧭 Navegação")
     
     menu = st.radio(
@@ -132,7 +140,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📋 Categorias Ativas")
     
-    # Verificação segura para evitar o erro de atributo
     if hasattr(st.session_state.analyzer, 'mercado_subcategorias') and isinstance(st.session_state.analyzer.mercado_subcategorias, dict):
         cats = list(st.session_state.analyzer.mercado_subcategorias.keys())
         if cats:
@@ -140,8 +147,6 @@ with st.sidebar:
                 st.write(f"- {cat}")
         else:
             st.write("Nenhuma categoria cadastrada.")
-    else:
-        st.write("Aguardando inicialização...")
     
     st.markdown("---")
     if st.button("🗑️ Limpar Todos os Dados", use_container_width=True):
@@ -157,21 +162,22 @@ if menu == "🏠 Início":
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("""
-        ### 📖 O que mudou?
-        Agora você pode cadastrar **múltiplas categorias macro** para o mesmo cliente.
+        ### 📖 O que é esta ferramenta?
+        Esta aplicação ajuda você a tomar decisões estratégicas sobre **em qual categoria/subcategoria focar**, baseado em:
         
-        - ✅ **Visão Consolidada**: Analise o fit de ticket em diferentes frentes.
-        - ✅ **Priorização Cruzada**: Compare subcategorias de diferentes macros.
-        - ✅ **Foco Mercado Livre**: Lógica otimizada para o ecossistema Meli.
+        - ✅ **Tamanho de mercado** (volume de faturamento)
+        - ✅ **Fit de ticket** (alinhamento de preço cliente vs mercado)
+        - ✅ **Potencial de crescimento** (simulação de cenários)
+        - ✅ **Análise de lucratividade** (projeção de lucro)
         """)
     
     with col2:
         st.success("""
-        ### 🚀 Próximos Passos
+        ### 🚀 Como usar?
         1. Revise os **Dados do Cliente**.
         2. Adicione ou edite **Categorias Macro**.
         3. Insira as **Subcategorias** de cada macro.
-        4. Veja o ranking no **Dashboard Executivo**.
+        4. Veja o ranking e indicadores no **Dashboard Executivo**.
         """)
 
 # ====================
@@ -272,36 +278,61 @@ elif menu == "📊 Dashboard Executivo":
     if df_ranking.empty:
         st.info("Adicione dados para visualizar o dashboard.")
     else:
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.markdown("### 🏆 Ranking Geral de Priorização")
+        # 1. Ranking Geral
+        col_rank1, col_rank2 = st.columns([1, 1])
+        with col_rank1:
+            st.markdown("### 🏆 Ranking de Priorização")
             st.dataframe(df_ranking[['Categoria Macro', 'Subcategoria', 'Score', 'Status', 'Leitura']], 
                          use_container_width=True)
-            
-        with col2:
+        with col_rank2:
             fig_ranking = criar_grafico_ranking_subcategorias(df_ranking)
             st.plotly_chart(fig_ranking, use_container_width=True)
             
         st.markdown("---")
-        st.markdown("### 🔍 Detalhes por Subcategoria")
         
+        # 2. Indicadores Detalhados
+        st.markdown("### 🔍 Indicadores Principais")
         sub_foco = st.selectbox("Selecione uma subcategoria para análise detalhada:", 
                                 df_ranking['Subcategoria'].tolist())
         
-        # Encontrar a categoria da subcategoria selecionada
-        cat_foco = df_ranking[df_ranking['Subcategoria'] == sub_foco]['Categoria Macro'].values[0]
-        
+        # Dados da subcategoria selecionada
+        row_foco = df_ranking[df_ranking['Subcategoria'] == sub_foco].iloc[0]
+        cat_foco = row_foco['Categoria Macro']
         res = st.session_state.analyzer.simular_cenarios(cat_foco, sub_foco)
         
         if res:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Mercado 6M", f"R$ {res['mercado_6m']:,.2f}")
-            c2.metric("Ticket Mercado", f"R$ {res['ticket_mercado']:,.2f}")
-            c3.metric("Share Atual", f"{res['share_atual']:.4f}%")
+            # Cards de métricas
+            m1, m2, m3, m4, m5 = st.columns(5)
+            with m1:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Mercado 6M</div><div class="metric-value">R$ {res["mercado_6m"]:,.0f}</div></div>', unsafe_allow_html=True)
+            with m2:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Mercado</div><div class="metric-value">R$ {res["ticket_mercado"]:,.2f}</div></div>', unsafe_allow_html=True)
+            with m3:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Cliente</div><div class="metric-value">R$ {row_foco["Ticket Cliente"]:,.2f}</div></div>', unsafe_allow_html=True)
+            with m4:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Share Atual</div><div class="metric-value">{res["share_atual"]:.4f}%</div></div>', unsafe_allow_html=True)
+            with m5:
+                st.markdown(f'<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{st.session_state.analyzer.cliente_data.get("margem", 0)*100:.1f}%</div></div>', unsafe_allow_html=True)
             
+            # Gráficos de Gauge e Ticket
+            st.markdown("<br>", unsafe_allow_html=True)
+            g1, g2 = st.columns([1, 1])
+            
+            with g1:
+                fig_gauge = criar_gauge_score(row_foco['Score'], row_foco['Status'])
+                st.plotly_chart(fig_gauge, use_container_width=True)
+                
+            with g2:
+                limite_inf, limite_sup = st.session_state.analyzer.calcular_limites_ticket(res['ticket_mercado'])
+                fig_ticket = criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], limite_inf, limite_sup)
+                st.plotly_chart(fig_ticket, use_container_width=True)
+            
+            st.markdown("---")
             st.markdown("#### 📈 Cenários de Crescimento")
-            st.dataframe(res['cenarios'], use_container_width=True)
-            
-            fig_cenarios = criar_grafico_cenarios(res['cenarios'])
-            st.plotly_chart(fig_cenarios, use_container_width=True)
+            col_cen1, col_cen2 = st.columns([1, 1])
+            with col_cen1:
+                st.dataframe(res['cenarios'][['Cenário', 'Share Alvo', 'Receita Projetada 6M', 'Lucro Projetado 6M', 'Crescimento (%)']], 
+                             use_container_width=True)
+            with col_cen2:
+                fig_cenarios = criar_grafico_cenarios(res['cenarios'])
+                st.plotly_chart(fig_cenarios, use_container_width=True)
