@@ -51,7 +51,15 @@ def parse_large_number(text):
     if isinstance(text, (int, float)):
         return float(text)
     
-    text = str(text).strip().upper().replace(".", "").replace(",", ".")
+    # Limpar a string: remover espaços e converter para maiúsculo
+    text = str(text).strip().upper()
+    
+    # Se já for um número formatado com pontos e vírgulas (ex: 1.234,56)
+    # Primeiro removemos os pontos de milhar e trocamos a vírgula decimal por ponto
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "," in text:
+        text = text.replace(",", ".")
     
     multipliers = {
         'K': 1_000,
@@ -59,6 +67,7 @@ def parse_large_number(text):
         'B': 1_000_000_000
     }
     
+    # Regex para capturar o número e a unidade (K, M, B)
     match = re.match(r"([\d.]+)([KMB]?)", text)
     if match:
         value, unit = match.groups()
@@ -100,16 +109,24 @@ st.markdown("""
 
 # --- INICIALIZAÇÃO ---
 
+# Garantir que o analyzer esteja sempre na sessão
 if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'calcular_limites_ticket'):
     st.session_state.analyzer = MarketAnalyzer()
-    st.session_state.data_loaded = False
 
 # Função para carregar dados do template
 def carregar_template():
-    if os.path.exists('initial_data.json'):
+    # Caminho absoluto para garantir que o Streamlit encontre o arquivo
+    base_path = os.path.dirname(__file__)
+    json_path = os.path.join(base_path, 'initial_data.json')
+    
+    if os.path.exists(json_path):
         try:
-            with open('initial_data.json', 'r', encoding='utf-8') as f:
+            with open(json_path, 'r', encoding='utf-8') as f:
                 initial_data = json.load(f)
+                
+                # Reinicializar o analyzer para garantir limpeza
+                st.session_state.analyzer = MarketAnalyzer()
+                
                 c = initial_data.get('cliente', {})
                 if c:
                     st.session_state.analyzer.set_cliente_data(
@@ -122,15 +139,33 @@ def carregar_template():
                         range_permitido=c.get('range_permitido', 20),
                         ticket_custom=c.get('ticket_custom')
                     )
+                
                 cat_nome = c.get('categoria', 'Geral')
+                
+                # Carregar mercado categoria
                 for item in initial_data.get('mercado_categoria', []):
-                    st.session_state.analyzer.add_mercado_categoria(cat_nome, item.get('periodo'), item.get('faturamento'), item.get('unidades'))
+                    st.session_state.analyzer.add_mercado_categoria(
+                        cat_nome, 
+                        item.get('periodo'), 
+                        item.get('faturamento'), 
+                        item.get('unidades')
+                    )
+                
+                # Carregar subcategorias
                 for item in initial_data.get('mercado_subcategorias', []):
-                    st.session_state.analyzer.add_mercado_subcategoria(cat_nome, item.get('subcategoria'), item.get('faturamento_6m'), item.get('unidades_6m'))
-            st.session_state.data_loaded = True
-            st.success("Dados do template carregados!")
+                    st.session_state.analyzer.add_mercado_subcategoria(
+                        cat_nome, 
+                        item.get('subcategoria'), 
+                        item.get('faturamento_6m'), 
+                        item.get('unidades_6m')
+                    )
+            return True
         except Exception as e:
-            st.error(f"Erro ao carregar template: {e}")
+            st.error(f"Erro ao processar arquivo: {e}")
+            return False
+    else:
+        st.error(f"Arquivo de exemplo não encontrado no servidor.")
+        return False
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -139,14 +174,15 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 🛠️ Gestão de Dados")
+    
     if st.button("📥 Carregar Dados Exemplo", use_container_width=True):
-        carregar_template()
-        st.rerun()
+        if carregar_template():
+            st.toast("✅ Dados de exemplo carregados com sucesso!", icon="🎉")
+            st.rerun()
     
     if st.button("🗑️ Limpar Tudo (Zerar)", use_container_width=True, type="secondary"):
         st.session_state.analyzer = MarketAnalyzer()
-        st.session_state.data_loaded = False
-        st.warning("Todos os dados foram limpos!")
+        st.toast("🗑️ Sistema zerado!", icon="⚠️")
         st.rerun()
 
 # Header
@@ -168,6 +204,9 @@ if menu == "🏠 Início":
         """)
     with col2:
         st.info("💡 **Dica de Preenchimento**: Nos campos de faturamento, você pode digitar valores como '1.5M' ou '500K' para facilitar!")
+        
+    if not st.session_state.analyzer.cliente_data:
+        st.warning("⚠️ Nenhum dado carregado. Use a barra lateral para carregar o exemplo ou começar a preencher.")
 
 # ====================
 # SEÇÃO: DADOS DO CLIENTE
@@ -181,8 +220,12 @@ elif menu == "👤 Dados do Cliente":
             ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(st.session_state.analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f")
             margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1)
         with col2:
-            fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(st.session_state.analyzer.cliente_data.get('faturamento_3m', 0.0)))
-            uni_input = st.text_input("Unidades Médias 3M", value=str(st.session_state.analyzer.cliente_data.get('unidades_3m', 0)))
+            fat_val = st.session_state.analyzer.cliente_data.get('faturamento_3m', 0.0)
+            fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "")
+            
+            uni_val = st.session_state.analyzer.cliente_data.get('unidades_3m', 0)
+            uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "")
+            
             range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('range_permitido', 0.20) * 100))
         
         if st.form_submit_button("💾 Salvar Dados"):
@@ -191,7 +234,8 @@ elif menu == "👤 Dados do Cliente":
                 margem=margem, faturamento_3m=parse_large_number(fat_input), 
                 unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido
             )
-            st.success(f"Dados salvos! Faturamento processado: R$ {format_br(st.session_state.analyzer.cliente_data['faturamento_3m'])}")
+            st.toast("✅ Dados do cliente salvos!", icon="💾")
+            st.rerun()
 
 # ====================
 # SEÇÃO: GESTÃO DE CATEGORIAS
@@ -208,13 +252,14 @@ elif menu == "📈 Gestão de Categorias":
             if st.form_submit_button("Adicionar"):
                 if nova_cat:
                     st.session_state.analyzer.add_mercado_categoria(nova_cat, periodo, parse_large_number(fat_cat), int(parse_large_number(uni_cat)))
-                    st.success(f"Categoria {nova_cat} adicionada!")
+                    st.toast(f"✅ Categoria {nova_cat} adicionada!", icon="📈")
                     st.rerun()
 
     for cat in st.session_state.analyzer.mercado_categoria.keys():
         df_cat = st.session_state.analyzer.get_mercado_categoria_df(cat).copy()
         if not df_cat.empty:
             df_cat['faturamento'] = df_cat['faturamento'].apply(format_br)
+            df_cat['ticket_medio'] = df_cat['ticket_medio'].apply(format_br)
             st.write(f"**{cat}**")
             st.dataframe(df_cat, use_container_width=True)
 
@@ -236,12 +281,13 @@ elif menu == "🎯 Mercado Subcategorias":
             if st.form_submit_button("Adicionar Subcategoria"):
                 if sub:
                     st.session_state.analyzer.add_mercado_subcategoria(cat_sel, sub, parse_large_number(fat_6m), int(parse_large_number(uni_6m)))
-                    st.success(f"Subcategoria {sub} adicionada!")
+                    st.toast(f"✅ Subcategoria {sub} adicionada!", icon="🎯")
                     st.rerun()
         
         if cat_sel in st.session_state.analyzer.mercado_subcategorias:
             df_sub = pd.DataFrame(st.session_state.analyzer.mercado_subcategorias[cat_sel]).copy()
             df_sub['faturamento_6m'] = df_sub['faturamento_6m'].apply(format_br)
+            df_sub['ticket_medio'] = df_sub['ticket_medio'].apply(format_br)
             st.dataframe(df_sub, use_container_width=True)
 
 # ====================
