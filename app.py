@@ -78,6 +78,13 @@ def safe_float(val):
     except:
         return 0.0
 
+def calcular_limites_ticket_local(ticket_mercado, range_permitido=0.20):
+    """Calcula limites inferior e superior baseado no ticket do mercado"""
+    if not ticket_mercado: return 0.0, 0.0
+    inf = ticket_mercado * (1 - range_permitido)
+    sup = ticket_mercado * (1 + range_permitido)
+    return inf, sup
+
 # --- INICIALIZAÇÃO ---
 
 # Garantir que o analyzer esteja sempre na sessão
@@ -163,7 +170,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
     
-    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v2")
+    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v3")
     if uploaded_file is not None:
         if st.button("🚀 Processar Planilha", use_container_width=True):
             if processar_excel(uploaded_file):
@@ -322,7 +329,9 @@ elif menu == "📊 Dashboard Executivo":
             g1, g2 = st.columns(2)
             with g1: st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
             with g2:
-                l_inf, l_sup = analyzer.calcular_limites_ticket(res['ticket_mercado'])
+                # CORREÇÃO: Usar função local para evitar AttributeError do objeto analyzer
+                r_perm = analyzer.cliente_data.get('range_permitido', 0.20)
+                l_inf, l_sup = calcular_limites_ticket_local(res['ticket_mercado'], r_perm)
                 st.plotly_chart(criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True)
             
             st.markdown("#### 📈 Cenários")
