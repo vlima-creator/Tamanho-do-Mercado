@@ -152,7 +152,7 @@ class MarketAnalyzer:
         
         return df
     
-    def simular_cenarios(self, categoria: str, subcategoria: str) -> Dict:
+    def simular_cenarios(self, categoria: str, subcategoria: str, custom_shares: Dict = None) -> Dict:
         """Simula cenários de crescimento para uma subcategoria de uma categoria"""
         if categoria not in self.mercado_subcategorias:
             return {}
@@ -167,22 +167,27 @@ class MarketAnalyzer:
         margem = self.cliente_data.get('margem', 0)
         faturamento_atual_6m = self.cliente_data.get('faturamento_3m', 0) * 2
         
-        cenarios = {
-            'Conservador': {'share_alvo': 0.002, 'label': '0,2%'},
-            'Provável': {'share_alvo': 0.005, 'label': '0,5%'},
-            'Otimista': {'share_alvo': 0.010, 'label': '1,0%'}
-        }
+        # Usar shares customizados se fornecidos, senão usar padrão
+        if custom_shares:
+            cenarios = custom_shares
+        else:
+            cenarios = {
+                'Conservador': {'share_alvo': 0.002, 'label': '0,2%'},
+                'Provável': {'share_alvo': 0.005, 'label': '0,5%'},
+                'Otimista': {'share_alvo': 0.010, 'label': '1,0%'}
+            }
         
         resultados = []
         
         for nome, config in cenarios.items():
-            receita_projetada = mercado_6m * config['share_alvo']
+            share_val = config['share_alvo']
+            receita_projetada = mercado_6m * share_val
             lucro_projetado = receita_projetada * margem
             delta = receita_projetada - faturamento_atual_6m
             
             resultados.append({
                 'Cenário': nome,
-                'Share Alvo': config['label'],
+                'Share Alvo': config.get('label', f"{share_val*100:.2f}%"),
                 'Ticket Usado': ticket_usado,
                 'Receita Projetada 6M': receita_projetada,
                 'Lucro Projetado 6M': lucro_projetado,

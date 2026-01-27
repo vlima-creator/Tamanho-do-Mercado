@@ -159,6 +159,10 @@ st.markdown("""
     }
     .metric-label { font-size: 0.85rem; color: #A0A0A0; margin-bottom: 0.3rem; }
     .metric-value { font-size: 1.2rem; font-weight: bold; color: #FFFFFF; }
+    .insight-card {
+        background-color: #1E1E1E; padding: 1.5rem; border-radius: 0.5rem; border-left: 5px solid #3498db; margin-bottom: 1rem;
+    }
+    .insight-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -170,7 +174,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
     
-    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v3")
+    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_v4")
     if uploaded_file is not None:
         if st.button("🚀 Processar Planilha", use_container_width=True):
             if processar_excel(uploaded_file):
@@ -263,10 +267,29 @@ elif menu == "📈 Gestão de Categorias":
         for cat in analyzer.mercado_categoria.keys():
             df_cat = analyzer.get_mercado_categoria_df(cat).copy()
             if not df_cat.empty:
-                df_cat['faturamento'] = df_cat['faturamento'].apply(format_br)
-                df_cat['ticket_medio'] = df_cat['ticket_medio'].apply(format_br)
-                st.write(f"**{cat}**")
-                st.dataframe(df_cat, use_container_width=True)
+                st.markdown(f"### 📂 {cat}")
+                
+                # Métricas da Categoria
+                m_col1, m_col2 = st.columns(2)
+                fat_medio = df_cat['faturamento'].mean()
+                tm_medio = df_cat['ticket_medio'].mean()
+                m_col1.metric("Faturamento Médio", f"R$ {format_br(fat_medio)}")
+                m_col2.metric("Ticket Médio", f"R$ {format_br(tm_medio)}")
+                
+                # Tabela de Dados
+                df_disp = df_cat.copy()
+                df_disp['faturamento'] = df_disp['faturamento'].apply(format_br)
+                df_disp['ticket_medio'] = df_disp['ticket_medio'].apply(format_br)
+                st.dataframe(df_disp, use_container_width=True)
+                
+                # Visualizações da Categoria
+                st.markdown("#### 📈 Visualizações")
+                tab1, tab2 = st.tabs(["Evolução da Categoria", "Ticket Médio"])
+                with tab1:
+                    st.plotly_chart(criar_grafico_evolucao_categoria(df_cat), use_container_width=True)
+                with tab2:
+                    st.plotly_chart(criar_grafico_ticket_medio(df_cat), use_container_width=True)
+                st.markdown("---")
     else:
         st.info("Nenhuma categoria macro cadastrada.")
 
@@ -307,18 +330,35 @@ elif menu == "📊 Dashboard Executivo":
     else:
         col_rank1, col_rank2 = st.columns([1, 1])
         with col_rank1:
-            st.markdown("### 🏆 Ranking")
+            st.markdown("### 🏆 Ranking de Oportunidades")
             df_display = df_ranking[['Categoria Macro', 'Subcategoria', 'Score', 'Status']].copy()
             st.dataframe(df_display, use_container_width=True)
         with col_rank2:
             st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True)
             
         st.markdown("---")
-        sub_foco = st.selectbox("Análise Detalhada:", df_ranking['Subcategoria'].tolist())
+        sub_foco = st.selectbox("Análise Detalhada da Subcategoria:", df_ranking['Subcategoria'].tolist())
         row_foco = df_ranking[df_ranking['Subcategoria'] == sub_foco].iloc[0]
-        res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco)
+        
+        # Seção de Simulação Interativa
+        st.markdown("### 💰 Simulação de Cenários")
+        
+        with st.expander("⚙️ Ajustar Metas de Share", expanded=False):
+            col_s1, col_s2, col_s3 = st.columns(3)
+            s_cons = col_s1.slider("Share Conservador (%)", 0.0, 5.0, 0.2, 0.1) / 100
+            s_prov = col_s2.slider("Share Provável (%)", 0.0, 10.0, 0.5, 0.1) / 100
+            s_otim = col_s3.slider("Share Otimista (%)", 0.0, 20.0, 1.0, 0.1) / 100
+            
+            custom_shares = {
+                'Conservador': {'share_alvo': s_cons, 'label': f"{s_cons*100:.1f}%"},
+                'Provável': {'share_alvo': s_prov, 'label': f"{s_prov*100:.1f}%"},
+                'Otimista': {'share_alvo': s_otim, 'label': f"{s_otim*100:.1f}%"}
+            }
+        
+        res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares if 'custom_shares' in locals() else None)
         
         if res:
+            # Indicadores Principais
             m1, m2, m3, m4, m5 = st.columns(5)
             m1.markdown(f'<div class="metric-card"><div class="metric-label">Mercado 6M</div><div class="metric-value">R$ {format_br(res["mercado_6m"])}</div></div>', unsafe_allow_html=True)
             m2.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Mercado</div><div class="metric-value">R$ {format_br(res["ticket_mercado"])}</div></div>', unsafe_allow_html=True)
@@ -326,16 +366,60 @@ elif menu == "📊 Dashboard Executivo":
             m4.markdown(f'<div class="metric-card"><div class="metric-label">Share Atual</div><div class="metric-value">{res["share_atual"]:.4f}%</div></div>', unsafe_allow_html=True)
             m5.markdown(f'<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{analyzer.cliente_data.get("margem", 0)*100:.1f}%</div></div>', unsafe_allow_html=True)
             
+            # Gráficos de Score e Ticket
             g1, g2 = st.columns(2)
             with g1: st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
             with g2:
-                # CORREÇÃO: Usar função local para evitar AttributeError do objeto analyzer
                 r_perm = analyzer.cliente_data.get('range_permitido', 0.20)
                 l_inf, l_sup = calcular_limites_ticket_local(res['ticket_mercado'], r_perm)
                 st.plotly_chart(criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True)
             
-            st.markdown("#### 📈 Cenários")
+            # Tabela e Gráfico de Cenários
+            st.markdown("#### 📈 Projeções de Receita e Lucro")
             df_cen = res['cenarios'].copy()
-            for col in ['Receita Projetada 6M', 'Lucro Projetado 6M', 'Delta vs Atual']:
-                df_cen[col] = df_cen[col].apply(format_br)
-            st.dataframe(df_cen, use_container_width=True)
+            
+            c_tab1, c_tab2 = st.tabs(["Tabela de Dados", "Gráfico Comparativo"])
+            with c_tab1:
+                df_disp_cen = df_cen.copy()
+                for col in ['Receita Projetada 6M', 'Lucro Projetado 6M', 'Delta vs Atual']:
+                    df_disp_cen[col] = df_disp_cen[col].apply(format_br)
+                st.dataframe(df_disp_cen, use_container_width=True)
+            with c_tab2:
+                st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True)
+            
+            # SEÇÃO DE INSIGHTS
+            st.markdown("### 💡 Insights dos Cenários")
+            i_col1, i_col2, i_col3 = st.columns(3)
+            
+            with i_col1:
+                row = df_cen.iloc[0]
+                st.markdown(f"""
+                <div class="insight-card" style="border-left-color: #2ecc71;">
+                    <div class="insight-title">🟢 Cenário Conservador</div>
+                    • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
+                    • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
+                    • Crescimento: {row['Crescimento (%)']:.1f}%
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with i_col2:
+                row = df_cen.iloc[1]
+                st.markdown(f"""
+                <div class="insight-card" style="border-left-color: #f1c40f;">
+                    <div class="insight-title">🟡 Cenário Provável</div>
+                    • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
+                    • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
+                    • Crescimento: {row['Crescimento (%)']:.1f}%
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with i_col3:
+                row = df_cen.iloc[2]
+                st.markdown(f"""
+                <div class="insight-card" style="border-left-color: #e74c3c;">
+                    <div class="insight-title">🔴 Cenário Otimista</div>
+                    • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
+                    • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
+                    • Crescimento: {row['Crescimento (%)']:.1f}%
+                </div>
+                """, unsafe_allow_html=True)
