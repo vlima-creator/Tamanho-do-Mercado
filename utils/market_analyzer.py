@@ -208,6 +208,42 @@ class MarketAnalyzer:
             return pd.DataFrame()
         return pd.DataFrame(self.mercado_categoria[categoria])
     
+    def remover_mercado_categoria(self, categoria):
+        if categoria in self.mercado_categoria:
+            del self.mercado_categoria[categoria]
+        if categoria in self.mercado_subcategorias:
+            del self.mercado_subcategorias[categoria]
+
+    def remover_mercado_subcategoria(self, categoria, subcategoria_nome):
+        if categoria in self.mercado_subcategorias:
+            self.mercado_subcategorias[categoria] = [
+                s for s in self.mercado_subcategorias[categoria] 
+                if s['subcategoria'] != subcategoria_nome
+            ]
+
+    def editar_mercado_categoria(self, categoria_antiga, categoria_nova, periodo, faturamento, unidades):
+        if categoria_antiga != categoria_nova:
+            if categoria_antiga in self.mercado_categoria:
+                self.mercado_categoria[categoria_nova] = self.mercado_categoria.pop(categoria_antiga)
+            if categoria_antiga in self.mercado_subcategorias:
+                self.mercado_subcategorias[categoria_nova] = self.mercado_subcategorias.pop(categoria_antiga)
+        
+        if categoria_nova in self.mercado_categoria:
+            for item in self.mercado_categoria[categoria_nova]:
+                if item['periodo'] == periodo:
+                    item['faturamento'] = faturamento
+                    item['unidades'] = unidades
+                    item['ticket_medio'] = faturamento / unidades if unidades > 0 else 0
+
+    def editar_mercado_subcategoria(self, categoria, sub_antiga, sub_nova, faturamento_6m, unidades_6m):
+        if categoria in self.mercado_subcategorias:
+            for sub in self.mercado_subcategorias[categoria]:
+                if sub['subcategoria'] == sub_antiga:
+                    sub['subcategoria'] = sub_nova
+                    sub['faturamento_6m'] = faturamento_6m
+                    sub['unidades_6m'] = unidades_6m
+                    sub['ticket_medio'] = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
+
     def clear_data(self):
         """Limpa todos os dados"""
         self.cliente_data = {}

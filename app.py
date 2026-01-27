@@ -264,11 +264,30 @@ elif menu == "📈 Gestão de Categorias":
                     st.rerun()
 
     if analyzer.mercado_categoria:
-        for cat in analyzer.mercado_categoria.keys():
+        for cat in list(analyzer.mercado_categoria.keys()):
             df_cat = analyzer.get_mercado_categoria_df(cat).copy()
             if not df_cat.empty:
-                st.markdown(f"### 📂 {cat}")
+                col_title, col_actions = st.columns([4, 1])
+                col_title.markdown(f"### 📂 {cat}")
                 
+                with col_actions:
+                    if st.button(f"🗑️ Excluir Categoria", key=f"del_cat_{cat}"):
+                        analyzer.remover_mercado_categoria(cat)
+                        st.rerun()
+                
+                # Edição de Períodos
+                with st.expander(f"📝 Editar Dados de {cat}"):
+                    for i, row in df_cat.iterrows():
+                        with st.form(f"edit_cat_{cat}_{i}"):
+                            st.markdown(f"**Período: {row['periodo']}**")
+                            c1, c2, c3 = st.columns(3)
+                            new_name = c1.text_input("Nome Categoria", value=cat)
+                            new_fat = c2.text_input("Faturamento (R$)", value=str(row['faturamento']))
+                            new_uni = c3.text_input("Unidades", value=str(row['unidades']))
+                            if st.form_submit_button("Salvar Alterações"):
+                                analyzer.editar_mercado_categoria(cat, new_name, row['periodo'], parse_large_number(new_fat), int(parse_large_number(new_uni)))
+                                st.rerun()
+
                 # Métricas da Categoria
                 m_col1, m_col2 = st.columns(2)
                 fat_medio = df_cat['faturamento'].mean()
@@ -314,10 +333,30 @@ elif menu == "🎯 Mercado Subcategorias":
                     st.rerun()
         
         if cat_sel in analyzer.mercado_subcategorias:
-            df_sub = pd.DataFrame(analyzer.mercado_subcategorias[cat_sel]).copy()
-            df_sub['faturamento_6m'] = df_sub['faturamento_6m'].apply(format_br)
-            df_sub['ticket_medio'] = df_sub['ticket_medio'].apply(format_br)
-            st.dataframe(df_sub, use_container_width=True)
+            df_sub_raw = pd.DataFrame(analyzer.mercado_subcategorias[cat_sel])
+            
+            st.markdown("### 📋 Lista de Subcategorias")
+            for i, row in df_sub_raw.iterrows():
+                with st.expander(f"🔹 {row['subcategoria']} - R$ {format_br(row['faturamento_6m'])}"):
+                    with st.form(f"edit_sub_{cat_sel}_{i}"):
+                        c1, c2, c3 = st.columns(3)
+                        new_sub = c1.text_input("Nome Subcategoria", value=row['subcategoria'])
+                        new_fat = c2.text_input("Faturamento 6M (R$)", value=str(row['faturamento_6m']))
+                        new_uni = c3.text_input("Unidades 6M", value=str(row['unidades_6m']))
+                        
+                        b1, b2 = st.columns(2)
+                        if b1.form_submit_button("💾 Salvar"):
+                            analyzer.editar_mercado_subcategoria(cat_sel, row['subcategoria'], new_sub, parse_large_number(new_fat), int(parse_large_number(new_uni)))
+                            st.rerun()
+                        if b2.form_submit_button("🗑️ Excluir", type="secondary"):
+                            analyzer.remover_mercado_subcategoria(cat_sel, row['subcategoria'])
+                            st.rerun()
+            
+            st.markdown("---")
+            df_sub_disp = df_sub_raw.copy()
+            df_sub_disp['faturamento_6m'] = df_sub_disp['faturamento_6m'].apply(format_br)
+            df_sub_disp['ticket_medio'] = df_sub_disp['ticket_medio'].apply(format_br)
+            st.dataframe(df_sub_disp, use_container_width=True)
 
 # ====================
 # SEÇÃO: DASHBOARD
