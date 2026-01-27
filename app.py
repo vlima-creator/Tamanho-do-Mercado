@@ -98,27 +98,32 @@ def processar_excel(file):
         
         # 2. Mercado Categoria
         df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
+        count_cat = 0
         for _, row in df_cat.iterrows():
             if pd.notna(row['Categoria']) and pd.notna(row['Periodo (texto)']):
                 new_analyzer.add_mercado_categoria(
                     str(row['Categoria']), str(row['Periodo (texto)']), 
                     float(row['Faturamento (R$)']), int(row['Unidades'])
                 )
+                count_cat += 1
                 
         # 3. Mercado Subcategoria
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
+        count_sub = 0
         for _, row in df_sub.iterrows():
             if pd.notna(row['Categoria']) and pd.notna(row['Subcategoria']):
                 new_analyzer.add_mercado_subcategoria(
                     str(row['Categoria']), str(row['Subcategoria']), 
                     float(row['Faturamento 6M (R$)']), int(row['Unidades 6M'])
                 )
+                count_sub += 1
         
+        # PERSISTÊNCIA CRÍTICA: Salvar no session_state e forçar atualização
         st.session_state.analyzer = new_analyzer
-        return True
+        st.session_state['last_upload'] = datetime.now().strftime("%H:%M:%S")
+        return f"Sucesso! Empresa: {empresa} | Macros: {count_cat} | Subs: {count_sub}"
     except Exception as e:
-        st.error(f"Erro ao processar Excel: {e}")
-        return False
+        return f"Erro: {str(e)}"
 
 # --- CSS CUSTOMIZADO ---
 st.markdown("""
@@ -146,16 +151,26 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
-    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"])
+    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader")
+    
     if uploaded_file is not None:
         if st.button("🚀 Processar Planilha", use_container_width=True):
-            if processar_excel(uploaded_file):
-                st.toast("✅ Planilha importada com sucesso!", icon="🎉")
+            resultado = processar_excel(uploaded_file)
+            if "Sucesso" in resultado:
+                st.success(resultado)
+                st.toast("✅ Dados atualizados!", icon="🎉")
+                # Forçar o Streamlit a recarregar tudo com os novos dados
                 st.rerun()
+            else:
+                st.error(resultado)
+    
+    if 'last_upload' in st.session_state:
+        st.caption(f"Última importação: {st.session_state.last_upload}")
     
     st.markdown("---")
     if st.button("🗑️ Limpar Tudo (Zerar)", use_container_width=True, type="secondary"):
         st.session_state.analyzer = MarketAnalyzer()
+        if 'last_upload' in st.session_state: del st.session_state['last_upload']
         st.toast("🗑️ Sistema zerado!", icon="⚠️")
         st.rerun()
 
@@ -180,6 +195,8 @@ if menu == "🏠 Início":
         
     if not st.session_state.analyzer.cliente_data:
         st.warning("⚠️ Nenhum dado carregado. Suba uma planilha na barra lateral para começar.")
+    else:
+        st.success(f"✅ Dados carregados para: **{st.session_state.analyzer.cliente_data.get('empresa', 'Empresa')}**")
 
 # ====================
 # SEÇÃO: DADOS DO CLIENTE
