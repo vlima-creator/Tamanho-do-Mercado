@@ -93,7 +93,7 @@ if 'analyzer' not in st.session_state:
 else:
     # Verificação de segurança: se o objeto na sessão não tem os métodos novos, forçamos a atualização
     # sem perder os dados, se possível, ou reiniciamos para evitar o erro de AttributeError
-    if not hasattr(st.session_state.analyzer, 'editar_mercado_categoria'):
+    if not hasattr(st.session_state.analyzer, 'editar_mercado_categoria') or not hasattr(st.session_state.analyzer, 'remover_periodo_categoria'):
         # Tentar migrar dados para um novo objeto que possui os métodos
         old_data = st.session_state.analyzer
         new_analyzer = MarketAnalyzer()
