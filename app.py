@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Aplicação Streamlit - Análise de Mercado Marketplace (Mercado Livre)
+Aplicação Streamlit - Tamanho do Mercado (Mercado Livre)
 Dashboard interativo para análise estratégica de múltiplas categorias macro
 """
 
@@ -29,7 +29,7 @@ from utils.visualizations import (
 
 # Configuração da página
 st.set_page_config(
-    page_title="Análise de Mercado - Mercado Livre",
+    page_title="Tamanho do Mercado - Mercado Livre",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -64,52 +64,55 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Inicializar session state
-if 'analyzer' not in st.session_state:
+# Inicializar session state com verificação de compatibilidade
+if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'mercado_subcategorias') or not isinstance(st.session_state.analyzer.mercado_subcategorias, dict):
     st.session_state.analyzer = MarketAnalyzer()
     
     # Carregar dados iniciais se existirem
     if os.path.exists('initial_data.json'):
-        with open('initial_data.json', 'r', encoding='utf-8') as f:
-            initial_data = json.load(f)
-            
-            c = initial_data.get('cliente', {})
-            if c:
-                st.session_state.analyzer.set_cliente_data(
-                    empresa=c.get('empresa', ''),
-                    categoria=c.get('categoria', ''),
-                    ticket_medio=c.get('ticket_medio', 0),
-                    margem=c.get('margem', 0) * 100,
-                    faturamento_3m=c.get('faturamento_3m', 0),
-                    unidades_3m=c.get('unidades_3m', 0),
-                    range_permitido=c.get('range_permitido', 20),
-                    ticket_custom=c.get('ticket_custom')
-                )
-            
-            # Carregar mercado categoria (agora com suporte a múltiplas)
-            cat_nome = c.get('categoria', 'Geral')
-            for item in initial_data.get('mercado_categoria', []):
-                st.session_state.analyzer.add_mercado_categoria(
-                    categoria=cat_nome,
-                    periodo=item.get('periodo'),
-                    faturamento=item.get('faturamento'),
-                    unidades=item.get('unidades')
-                )
+        try:
+            with open('initial_data.json', 'r', encoding='utf-8') as f:
+                initial_data = json.load(f)
                 
-            # Carregar subcategorias
-            for item in initial_data.get('mercado_subcategorias', []):
-                st.session_state.analyzer.add_mercado_subcategoria(
-                    categoria=cat_nome,
-                    subcategoria=item.get('subcategoria'),
-                    faturamento_6m=item.get('faturamento_6m'),
-                    unidades_6m=item.get('unidades_6m')
-                )
+                c = initial_data.get('cliente', {})
+                if c:
+                    st.session_state.analyzer.set_cliente_data(
+                        empresa=c.get('empresa', ''),
+                        categoria=c.get('categoria', ''),
+                        ticket_medio=c.get('ticket_medio', 0),
+                        margem=c.get('margem', 0) * 100,
+                        faturamento_3m=c.get('faturamento_3m', 0),
+                        unidades_3m=c.get('unidades_3m', 0),
+                        range_permitido=c.get('range_permitido', 20),
+                        ticket_custom=c.get('ticket_custom')
+                    )
+                
+                # Carregar mercado categoria
+                cat_nome = c.get('categoria', 'Geral')
+                for item in initial_data.get('mercado_categoria', []):
+                    st.session_state.analyzer.add_mercado_categoria(
+                        categoria=cat_nome,
+                        periodo=item.get('periodo'),
+                        faturamento=item.get('faturamento'),
+                        unidades=item.get('unidades')
+                    )
+                    
+                # Carregar subcategorias
+                for item in initial_data.get('mercado_subcategorias', []):
+                    st.session_state.analyzer.add_mercado_subcategoria(
+                        categoria=cat_nome,
+                        subcategoria=item.get('subcategoria'),
+                        faturamento_6m=item.get('faturamento_6m'),
+                        unidades_6m=item.get('unidades_6m')
+                    )
+        except Exception as e:
+            st.error(f"Erro ao carregar dados iniciais: {e}")
 
 if 'menu_index' not in st.session_state:
     st.session_state.menu_index = 0
 
 # Header
-st.markdown('<div class="main-header">📊 Análise de Mercado - Mercado Livre</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📊 Tamanho do Mercado - Mercado Livre</div>', unsafe_allow_html=True)
 
 # Sidebar - Navegação
 with st.sidebar:
@@ -128,12 +131,17 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 📋 Categorias Ativas")
-    cats = list(st.session_state.analyzer.mercado_subcategorias.keys())
-    if cats:
-        for cat in cats:
-            st.write(f"- {cat}")
+    
+    # Verificação segura para evitar o erro de atributo
+    if hasattr(st.session_state.analyzer, 'mercado_subcategorias') and isinstance(st.session_state.analyzer.mercado_subcategorias, dict):
+        cats = list(st.session_state.analyzer.mercado_subcategorias.keys())
+        if cats:
+            for cat in cats:
+                st.write(f"- {cat}")
+        else:
+            st.write("Nenhuma categoria cadastrada.")
     else:
-        st.write("Nenhuma categoria cadastrada.")
+        st.write("Aguardando inicialização...")
     
     st.markdown("---")
     if st.button("🗑️ Limpar Todos os Dados", use_container_width=True):
