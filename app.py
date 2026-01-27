@@ -71,26 +71,39 @@ def parse_large_number(text):
             return 0.0
     return 0.0
 
+def safe_float(val):
+    try:
+        if pd.isna(val): return 0.0
+        return float(val)
+    except:
+        return 0.0
+
+# --- INICIALIZAÇÃO ---
+
+# Garantir que o analyzer esteja sempre na sessão e persistente
+if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'calcular_limites_ticket'):
+    st.session_state.analyzer = MarketAnalyzer()
+
 # --- LÓGICA DE IMPORTAÇÃO EXCEL ---
 
 def processar_excel(file):
     try:
-        # Criar novo analyzer
-        new_analyzer = MarketAnalyzer()
+        # Criar novo analyzer temporário
+        temp_analyzer = MarketAnalyzer()
         
         # 1. Cliente
         df_cliente = pd.read_excel(file, sheet_name="Cliente", header=None)
         empresa = str(df_cliente.iloc[4, 1])
         cat_macro = str(df_cliente.iloc[5, 1])
-        ticket_medio = float(df_cliente.iloc[6, 1])
-        margem = float(df_cliente.iloc[7, 1])
-        fat_3m = float(df_cliente.iloc[8, 1])
-        uni_3m = int(df_cliente.iloc[9, 1])
-        range_p = float(df_cliente.iloc[10, 1])
+        ticket_medio = safe_float(df_cliente.iloc[6, 1])
+        margem = safe_float(df_cliente.iloc[7, 1])
+        fat_3m = safe_float(df_cliente.iloc[8, 1])
+        uni_3m = int(safe_float(df_cliente.iloc[9, 1]))
+        range_p = safe_float(df_cliente.iloc[10, 1])
         ticket_c = df_cliente.iloc[11, 1]
-        ticket_custom = float(ticket_c) if pd.notna(ticket_c) else None
+        ticket_custom = safe_float(ticket_c) if pd.notna(ticket_c) and str(ticket_c).strip() != "" else None
         
-        new_analyzer.set_cliente_data(
+        temp_analyzer.set_cliente_data(
             empresa=empresa, categoria=cat_macro, ticket_medio=ticket_medio,
             margem=margem, faturamento_3m=fat_3m, unidades_3m=uni_3m,
             range_permitido=range_p, ticket_custom=ticket_custom
@@ -101,9 +114,9 @@ def processar_excel(file):
         count_cat = 0
         for _, row in df_cat.iterrows():
             if pd.notna(row['Categoria']) and pd.notna(row['Periodo (texto)']):
-                new_analyzer.add_mercado_categoria(
+                temp_analyzer.add_mercado_categoria(
                     str(row['Categoria']), str(row['Periodo (texto)']), 
-                    float(row['Faturamento (R$)']), int(row['Unidades'])
+                    safe_float(row['Faturamento (R$)']), int(safe_float(row['Unidades']))
                 )
                 count_cat += 1
                 
@@ -112,18 +125,20 @@ def processar_excel(file):
         count_sub = 0
         for _, row in df_sub.iterrows():
             if pd.notna(row['Categoria']) and pd.notna(row['Subcategoria']):
-                new_analyzer.add_mercado_subcategoria(
+                temp_analyzer.add_mercado_subcategoria(
                     str(row['Categoria']), str(row['Subcategoria']), 
-                    float(row['Faturamento 6M (R$)']), int(row['Unidades 6M'])
+                    safe_float(row['Faturamento 6M (R$)']), int(safe_float(row['Unidades 6M']))
                 )
                 count_sub += 1
         
-        # PERSISTÊNCIA CRÍTICA: Salvar no session_state e forçar atualização
-        st.session_state.analyzer = new_analyzer
-        st.session_state['last_upload'] = datetime.now().strftime("%H:%M:%S")
-        return f"Sucesso! Empresa: {empresa} | Macros: {count_cat} | Subs: {count_sub}"
+        # Atualizar o analyzer oficial na sessão
+        st.session_state.analyzer = temp_analyzer
+        st.session_state['data_version'] = datetime.now().timestamp()
+        st.session_state['last_upload_info'] = f"Empresa: {empresa} | Macros: {count_cat} | Subs: {count_sub}"
+        return True
     except Exception as e:
-        return f"Erro: {str(e)}"
+        st.error(f"Erro detalhado no processamento: {str(e)}")
+        return False
 
 # --- CSS CUSTOMIZADO ---
 st.markdown("""
@@ -140,10 +155,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO ---
-if 'analyzer' not in st.session_state or not hasattr(st.session_state.analyzer, 'calcular_limites_ticket'):
-    st.session_state.analyzer = MarketAnalyzer()
-
 # --- SIDEBAR ---
 with st.sidebar:
     st.markdown("### 🧭 Navegação")
@@ -151,27 +162,23 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
-    uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader")
     
-    if uploaded_file is not None:
-        if st.button("🚀 Processar Planilha", use_container_width=True):
-            resultado = processar_excel(uploaded_file)
-            if "Sucesso" in resultado:
-                st.success(resultado)
-                st.toast("✅ Dados atualizados!", icon="🎉")
-                # Forçar o Streamlit a recarregar tudo com os novos dados
-                st.rerun()
-            else:
-                st.error(resultado)
+    # Usar um container para o uploader para evitar resets inesperados
+    with st.container():
+        uploaded_file = st.file_uploader("Suba sua planilha Excel", type=["xlsx"], key="excel_uploader_main")
+        if uploaded_file is not None:
+            if st.button("🚀 Processar Planilha", use_container_width=True, key="btn_process"):
+                if processar_excel(uploaded_file):
+                    st.success("Dados carregados com sucesso!")
+                    st.rerun()
     
-    if 'last_upload' in st.session_state:
-        st.caption(f"Última importação: {st.session_state.last_upload}")
+    if 'last_upload_info' in st.session_state:
+        st.info(st.session_state.last_upload_info)
     
     st.markdown("---")
     if st.button("🗑️ Limpar Tudo (Zerar)", use_container_width=True, type="secondary"):
         st.session_state.analyzer = MarketAnalyzer()
-        if 'last_upload' in st.session_state: del st.session_state['last_upload']
-        st.toast("🗑️ Sistema zerado!", icon="⚠️")
+        if 'last_upload_info' in st.session_state: del st.session_state['last_upload_info']
         st.rerun()
 
 # Header
@@ -203,18 +210,22 @@ if menu == "🏠 Início":
 # ====================
 elif menu == "👤 Dados do Cliente":
     st.markdown("## 👤 Dados do Cliente")
+    
+    # Usar chaves dinâmicas baseadas na versão dos dados para forçar atualização dos campos
+    ver = st.session_state.get('data_version', 0)
+    
     with st.form("form_cliente"):
         col1, col2 = st.columns(2)
         with col1:
-            empresa = st.text_input("Nome da Empresa", value=st.session_state.analyzer.cliente_data.get('empresa', ''))
-            ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(st.session_state.analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f")
-            margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1)
+            empresa = st.text_input("Nome da Empresa", value=st.session_state.analyzer.cliente_data.get('empresa', ''), key=f"emp_{ver}")
+            ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(st.session_state.analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f", key=f"tm_{ver}")
+            margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1, key=f"mg_{ver}")
         with col2:
             fat_val = st.session_state.analyzer.cliente_data.get('faturamento_3m', 0.0)
-            fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "")
+            fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "", key=f"fat_{ver}")
             uni_val = st.session_state.analyzer.cliente_data.get('unidades_3m', 0)
-            uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "")
-            range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('range_permitido', 0.20) * 100))
+            uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "", key=f"uni_{ver}")
+            range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(st.session_state.analyzer.cliente_data.get('range_permitido', 0.20) * 100), key=f"rp_{ver}")
         
         if st.form_submit_button("💾 Salvar Dados"):
             st.session_state.analyzer.set_cliente_data(
@@ -240,7 +251,6 @@ elif menu == "📈 Gestão de Categorias":
             if st.form_submit_button("Adicionar"):
                 if nova_cat:
                     st.session_state.analyzer.add_mercado_categoria(nova_cat, periodo, parse_large_number(fat_cat), int(parse_large_number(uni_cat)))
-                    st.toast(f"✅ Categoria {nova_cat} adicionada!", icon="📈")
                     st.rerun()
 
     for cat in st.session_state.analyzer.mercado_categoria.keys():
@@ -269,7 +279,6 @@ elif menu == "🎯 Mercado Subcategorias":
             if st.form_submit_button("Adicionar Subcategoria"):
                 if sub:
                     st.session_state.analyzer.add_mercado_subcategoria(cat_sel, sub, parse_large_number(fat_6m), int(parse_large_number(uni_6m)))
-                    st.toast(f"✅ Subcategoria {sub} adicionada!", icon="🎯")
                     st.rerun()
         
         if cat_sel in st.session_state.analyzer.mercado_subcategorias:
