@@ -94,8 +94,45 @@ st.markdown("""
 # Inicializar session state
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
+    
+    # Carregar dados iniciais se existirem
+    if os.path.exists('initial_data.json'):
+        import json
+        with open('initial_data.json', 'r', encoding='utf-8') as f:
+            initial_data = json.load(f)
+            
+            # Carregar cliente
+            c = initial_data.get('cliente', {})
+            if c:
+                st.session_state.analyzer.set_cliente_data(
+                    empresa=c.get('empresa', ''),
+                    categoria=c.get('categoria', ''),
+                    ticket_medio=c.get('ticket_medio', 0),
+                    margem=c.get('margem', 0) * 100,
+                    faturamento_3m=c.get('faturamento_3m', 0),
+                    unidades_3m=c.get('unidades_3m', 0),
+                    range_permitido=c.get('range_permitido', 20),
+                    ticket_custom=c.get('ticket_custom')
+                )
+            
+            # Carregar mercado categoria
+            for item in initial_data.get('mercado_categoria', []):
+                st.session_state.analyzer.add_mercado_categoria(
+                    periodo=item.get('periodo'),
+                    faturamento=item.get('faturamento'),
+                    unidades=item.get('unidades')
+                )
+                
+            # Carregar subcategorias
+            for item in initial_data.get('mercado_subcategorias', []):
+                st.session_state.analyzer.add_mercado_subcategoria(
+                    subcategoria=item.get('subcategoria'),
+                    faturamento_6m=item.get('faturamento_6m'),
+                    unidades_6m=item.get('unidades_6m')
+                )
+
 if 'dados_salvos' not in st.session_state:
-    st.session_state.dados_salvos = False
+    st.session_state.dados_salvos = True if st.session_state.analyzer.cliente_data else False
 if 'step' not in st.session_state:
     st.session_state.step = 1
 
@@ -113,6 +150,16 @@ st.markdown("---")
 # Sidebar - Navegação
 with st.sidebar:
     st.image("https://via.placeholder.com/200x80/1f77b4/ffffff?text=Marketplace+Analytics", use_container_width=True)
+    
+    st.markdown("### 🌐 Canal de Venda")
+    canal = st.selectbox(
+        "Selecione o Marketplace:",
+        ["Mercado Livre", "Shopee", "Amazon", "Magalu"],
+        index=0,
+        help="Alterne entre canais para ver análises específicas (Ex: GMV Max e ROAS na Shopee)"
+    )
+    
+    st.markdown("---")
     st.markdown("### 🧭 Navegação")
     
     menu = st.radio(
@@ -146,6 +193,11 @@ with st.sidebar:
         st.session_state.analyzer.clear_data()
         st.session_state.dados_salvos = False
         st.rerun()
+        
+    st.markdown("---")
+    st.markdown("### 📥 Exportar")
+    if st.button("📄 Baixar Template Excel", use_container_width=True):
+        st.info("Funcionalidade de exportação será implementada em breve.")
 
 # ====================
 # SEÇÃO: INÍCIO

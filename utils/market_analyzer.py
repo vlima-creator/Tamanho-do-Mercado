@@ -87,12 +87,11 @@ class MarketAnalyzer:
         # Diferença percentual
         diff_pct = abs(ticket_cliente - ticket_mercado) / ticket_mercado if ticket_mercado > 0 else 1
         
-        # Score de fit: 1.0 se dentro do range, decai linearmente fora
+        # Score de fit: 1.0 se dentro do range, 0 se fora (conforme Excel v8)
         if diff_pct <= range_pct:
             score_fit = 1.0
         else:
-            # Penalizar proporcionalmente ao desvio
-            score_fit = max(0, 1 - (diff_pct - range_pct))
+            score_fit = 0.0
         
         # Score final ponderado
         score_final = (score_mercado * 0.7) + (score_fit * 0.3)
