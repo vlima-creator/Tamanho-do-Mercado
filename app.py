@@ -199,29 +199,32 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📥 Exportar Dados")
     
-    if analyzer.cliente_data or analyzer.mercado_categoria:
+    # Usar st.session_state.analyzer para evitar NameError
+    current_analyzer = st.session_state.analyzer
+    
+    if current_analyzer.cliente_data or current_analyzer.mercado_categoria:
         # Criar Excel em memória
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             # Aba Cliente
-            if analyzer.cliente_data:
+            if current_analyzer.cliente_data:
                 # Criar um formato similar ao template
                 cliente_rows = [
                     ["", ""], ["", ""], ["", ""], ["", ""],
-                    ["Empresa", analyzer.cliente_data.get('empresa', '')],
-                    ["Categoria Macro", analyzer.cliente_data.get('categoria_principal', '')],
-                    ["Ticket Médio Geral", analyzer.cliente_data.get('ticket_medio', 0)],
-                    ["Margem Atual", analyzer.cliente_data.get('margem', 0)],
-                    ["Faturamento Médio 3M", analyzer.cliente_data.get('faturamento_3m', 0)],
-                    ["Unidades Médias 3M", analyzer.cliente_data.get('unidades_3m', 0)],
-                    ["Range Permitido", analyzer.cliente_data.get('range_permitido', 0.20)],
-                    ["Ticket Customizado", analyzer.cliente_data.get('ticket_custom', "")]
+                    ["Empresa", current_analyzer.cliente_data.get('empresa', '')],
+                    ["Categoria Macro", current_analyzer.cliente_data.get('categoria_principal', '')],
+                    ["Ticket Médio Geral", current_analyzer.cliente_data.get('ticket_medio', 0)],
+                    ["Margem Atual", current_analyzer.cliente_data.get('margem', 0)],
+                    ["Faturamento Médio 3M", current_analyzer.cliente_data.get('faturamento_3m', 0)],
+                    ["Unidades Médias 3M", current_analyzer.cliente_data.get('unidades_3m', 0)],
+                    ["Range Permitido", current_analyzer.cliente_data.get('range_permitido', 0.20)],
+                    ["Ticket Customizado", current_analyzer.cliente_data.get('ticket_custom', "")]
                 ]
                 pd.DataFrame(cliente_rows).to_excel(writer, sheet_name="Cliente", index=False, header=False)
             
             # Aba Mercado Categoria
             cat_data = []
-            for cat, periods in analyzer.mercado_categoria.items():
+            for cat, periods in current_analyzer.mercado_categoria.items():
                 for p in periods:
                     cat_data.append({
                         "Categoria": cat,
@@ -234,7 +237,7 @@ with st.sidebar:
             
             # Aba Mercado Subcategoria
             sub_data = []
-            for cat, subs in analyzer.mercado_subcategorias.items():
+            for cat, subs in current_analyzer.mercado_subcategorias.items():
                 for s in subs:
                     sub_data.append({
                         "Categoria": cat,
@@ -248,7 +251,7 @@ with st.sidebar:
         st.download_button(
             label="📥 Baixar Planilha Atualizada",
             data=output.getvalue(),
-            file_name=f"Analise_Mercado_{analyzer.cliente_data.get('empresa', 'Empresa')}.xlsx",
+            file_name=f"Analise_Mercado_{current_analyzer.cliente_data.get('empresa', 'Empresa')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
