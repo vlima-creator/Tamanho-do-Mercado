@@ -384,6 +384,10 @@ elif menu == "📊 Dashboard Executivo":
                 df_disp_cen = df_cen.copy()
                 for col in ['Receita Projetada 6M', 'Lucro Projetado 6M', 'Delta vs Atual']:
                     df_disp_cen[col] = df_disp_cen[col].apply(format_br)
+                
+                # Formatar Crescimento (%) com padrão brasileiro
+                df_disp_cen['Crescimento (%)'] = df_disp_cen['Crescimento (%)'].apply(lambda x: f"{x:,.1f}%".replace(",", "X").replace(".", ",").replace("X", "."))
+                
                 st.dataframe(df_disp_cen, use_container_width=True)
             with c_tab2:
                 st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True)
@@ -399,7 +403,7 @@ elif menu == "📊 Dashboard Executivo":
                     <div class="insight-title">🟢 Cenário Conservador</div>
                     • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
                     • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
-                    • Crescimento: {row['Crescimento (%)']:.1f}%
+                    • Crescimento: {format_br(row['Crescimento (%)'])}%
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -410,7 +414,7 @@ elif menu == "📊 Dashboard Executivo":
                     <div class="insight-title">🟡 Cenário Provável</div>
                     • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
                     • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
-                    • Crescimento: {row['Crescimento (%)']:.1f}%
+                    • Crescimento: {format_br(row['Crescimento (%)'])}%
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -421,6 +425,6 @@ elif menu == "📊 Dashboard Executivo":
                     <div class="insight-title">🔴 Cenário Otimista</div>
                     • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
                     • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
-                    • Crescimento: {row['Crescimento (%)']:.1f}%
+                    • Crescimento: {format_br(row['Crescimento (%)'])}%
                 </div>
                 """, unsafe_allow_html=True)
