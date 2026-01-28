@@ -112,14 +112,22 @@ def processar_excel(file):
         
         # 1. Cliente
         df_cliente = pd.read_excel(file, sheet_name="Cliente", header=None)
-        empresa = str(df_cliente.iloc[4, 1])
-        cat_macro_cliente = str(df_cliente.iloc[5, 1])
-        ticket_medio = safe_float(df_cliente.iloc[6, 1])
-        margem = safe_float(df_cliente.iloc[7, 1])
-        fat_3m = safe_float(df_cliente.iloc[8, 1])
-        uni_3m = int(safe_float(df_cliente.iloc[9, 1]))
-        range_p = safe_float(df_cliente.iloc[10, 1])
-        ticket_c = df_cliente.iloc[11, 1]
+        
+        # Tentar localizar as linhas pelo nome na primeira coluna (mais robusto)
+        def get_val_by_label(label, default=""):
+            for i in range(len(df_cliente)):
+                if str(df_cliente.iloc[i, 0]).strip().lower() == label.lower():
+                    return df_cliente.iloc[i, 1]
+            return default
+
+        empresa = str(get_val_by_label("Empresa", "Empresa Exemplo"))
+        cat_macro_cliente = str(get_val_by_label("Categoria Macro", "Geral"))
+        ticket_medio = safe_float(get_val_by_label("Ticket Médio Geral", 0))
+        margem = safe_float(get_val_by_label("Margem Atual", 0))
+        fat_3m = safe_float(get_val_by_label("Faturamento Médio 3M", 0))
+        uni_3m = int(safe_float(get_val_by_label("Unidades Médias 3M", 0)))
+        range_p = safe_float(get_val_by_label("Range Permitido", 0.20))
+        ticket_c = get_val_by_label("Ticket Customizado", None)
         ticket_custom = safe_float(ticket_c) if pd.notna(ticket_c) and str(ticket_c).strip() != "" else None
         
         temp_analyzer.set_cliente_data(
@@ -233,7 +241,12 @@ with st.sidebar:
                         "Unidades": p['unidades']
                     })
             if cat_data:
-                pd.DataFrame(cat_data).to_excel(writer, sheet_name="Mercado_Categoria", index=False, startrow=2)
+                # Criar DataFrame e escrever a partir da linha 3 (startrow=2) para manter o cabeçalho do template
+                df_cat_export = pd.DataFrame(cat_data)
+                df_cat_export.to_excel(writer, sheet_name="Mercado_Categoria", index=False, startrow=2)
+            else:
+                # Se estiver vazio, criar apenas o cabeçalho na linha 3
+                pd.DataFrame(columns=["Categoria", "Periodo (texto)", "Faturamento (R$)", "Unidades"]).to_excel(writer, sheet_name="Mercado_Categoria", index=False, startrow=2)
             
             # Aba Mercado Subcategoria
             sub_data = []
@@ -246,7 +259,12 @@ with st.sidebar:
                         "Unidades 6M": s['unidades_6m']
                     })
             if sub_data:
-                pd.DataFrame(sub_data).to_excel(writer, sheet_name="Mercado_Subcategoria", index=False, startrow=2)
+                # Criar DataFrame e escrever a partir da linha 3 (startrow=2)
+                df_sub_export = pd.DataFrame(sub_data)
+                df_sub_export.to_excel(writer, sheet_name="Mercado_Subcategoria", index=False, startrow=2)
+            else:
+                # Se estiver vazio, criar apenas o cabeçalho na linha 3
+                pd.DataFrame(columns=["Categoria", "Subcategoria", "Faturamento 6M (R$)", "Unidades 6M"]).to_excel(writer, sheet_name="Mercado_Subcategoria", index=False, startrow=2)
         
         st.download_button(
             label="📥 Baixar Planilha Atualizada",
