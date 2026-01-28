@@ -486,7 +486,9 @@ elif menu == "📊 Dashboard Executivo":
                 'Conservador': {'share_alvo': s_cons, 'label': f"{s_cons*100:.1f}%"},
                 'Provável': {'share_alvo': s_prov, 'label': f"{s_prov*100:.1f}%"},
                 'Otimista': {'share_alvo': s_otim, 'label': f"{s_otim*100:.1f}%"}
-                    # Cards de Indicadores Principais
+            }
+            
+            # Cards de Indicadores Principais
             st.markdown("#### 📈 Indicadores Principais")
             m1, m2, m3, m4, m5 = st.columns(5)
             
