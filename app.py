@@ -525,6 +525,36 @@ elif menu == "📊 Dashboard Executivo":
             with c_tab2:
                 st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True)
             
+            # SEÇÃO DE TENDÊNCIA E PROJEÇÃO
+            st.markdown("### 📈 Tendência e Projeção de Demanda")
+            tendencia_res = analyzer.calcular_tendencia(row_foco['Categoria Macro'])
+            
+            t_col1, t_col2, t_col3 = st.columns(3)
+            with t_col1:
+                st.metric("Tendência Atual", tendencia_res['tendencia'], 
+                          delta=f"{tendencia_res['crescimento_mensal']:.1f}% mensal")
+            with t_col2:
+                st.metric("Projeção Faturamento (3 Meses)", f"R$ {format_br(tendencia_res['projecao_3m'])}")
+            with t_col3:
+                st.info("💡 Projeção baseada no crescimento médio histórico da categoria macro.")
+
+            # SEÇÃO DE PLANO DE AÇÃO
+            st.markdown("### 🧠 Plano de Ação Sugerido")
+            plano = analyzer.gerar_plano_acao(row_foco['Categoria Macro'])
+            # Filtrar apenas para a subcategoria em foco para ser mais específico
+            sub_plano = next((p for p in plano if p['Subcategoria'] == sub_foco), None)
+            
+            if sub_plano:
+                st.markdown(f"""
+                <div class="insight-card" style="border-left-color: {sub_plano['Cor']}; background-color: #1E1E1E;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 1.2rem; font-weight: bold;">Prioridade: {sub_plano['Prioridade']}</span>
+                        <span style="background-color: {sub_plano['Cor']}; padding: 2px 10px; border-radius: 10px; font-size: 0.8rem;">Score: {sub_plano['Score']:.2f}</span>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 1.1rem;">{sub_plano['Recomendação']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
             # SEÇÃO DE INSIGHTS
             st.markdown("### 💡 Insights dos Cenários")
             i_col1, i_col2, i_col3 = st.columns(3)

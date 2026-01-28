@@ -254,6 +254,78 @@ class MarketAnalyzer:
                     sub['unidades_6m'] = unidades_6m
                     sub['ticket_medio'] = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
 
+    def calcular_tendencia(self, categoria: str) -> Dict:
+        """Calcula a tendência de crescimento e faz projeção para os próximos 3 meses"""
+        if categoria not in self.mercado_categoria or len(self.mercado_categoria[categoria]) < 2:
+            return {"tendencia": "Estável", "crescimento_mensal": 0, "projecao_3m": 0}
+            
+        df = pd.DataFrame(self.mercado_categoria[categoria])
+        # Ordenar por período (assumindo formato Jan/25, Fev/25...)
+        # Para simplificar, vamos usar a ordem de inserção ou tentar converter
+        df['faturamento'] = pd.to_numeric(df['faturamento'])
+        
+        # Cálculo de crescimento médio mensal
+        df['pct_change'] = df['faturamento'].pct_change()
+        crescimento_medio = df['pct_change'].mean()
+        
+        ult_faturamento = df['faturamento'].iloc[-1]
+        projecao = ult_faturamento * (1 + crescimento_medio) ** 3
+        
+        tendencia = "Alta" if crescimento_medio > 0.02 else ("Baixa" if crescimento_medio < -0.02 else "Estável")
+        
+        return {
+            "tendencia": tendencia,
+            "crescimento_mensal": crescimento_medio * 100,
+            "projecao_3m": projecao
+        }
+
+    def gerar_plano_acao(self, categoria: str = None) -> List[Dict]:
+        """Gera recomendações estratégicas baseadas no ranking e scores"""
+        df_ranking = self.gerar_ranking(categoria)
+        if df_ranking.empty:
+            return []
+            
+        plano = []
+        for _, row in df_ranking.iterrows():
+            score = row['Score']
+            status = row['Status']
+            leitura = row['Leitura']
+            subcat = row['Subcategoria']
+            mercado = row['Mercado (R$)']
+            
+            recomendacao = ""
+            prioridade = ""
+            cor = ""
+            
+            if status == "FOCO":
+                prioridade = "CRÍTICA"
+                cor = "red"
+                if leitura == "Ticket OK":
+                    recomendacao = f"Oportunidade de Ouro! Mercado grande e seu ticket está perfeito. Aumente o investimento em Ads e estoque imediatamente para ganhar share em {subcat}."
+                else:
+                    recomendacao = f"Prioridade Máxima! Mercado gigante, mas seu ticket precisa de ajuste ({leitura}). Corrija o preço para capturar o faturamento de R$ {mercado:,.0f}."
+            elif status == "OK":
+                prioridade = "ALTA"
+                cor = "orange"
+                if leitura == "Ticket OK":
+                    recomendacao = f"Manutenção e Crescimento. Continue monitorando {subcat}. O fit de ticket está bom, foque em diferenciação de produto."
+                else:
+                    recomendacao = f"Ajuste Estratégico. O mercado é interessante, mas o ticket {leitura} está dificultando a conversão. Teste novos preços."
+            else:
+                prioridade = "BAIXA"
+                cor = "gray"
+                recomendacao = f"Monitoramento Passivo. {subcat} possui score baixo ou ticket muito desalinhado. Mantenha apenas se a margem for muito superior."
+                
+            plano.append({
+                "Subcategoria": subcat,
+                "Prioridade": prioridade,
+                "Recomendação": recomendacao,
+                "Cor": cor,
+                "Score": score
+            })
+            
+        return plano
+
     def clear_data(self):
         """Limpa todos os dados"""
         self.cliente_data = {}
