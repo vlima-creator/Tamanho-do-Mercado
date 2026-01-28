@@ -486,20 +486,23 @@ elif menu == "📊 Dashboard Executivo":
                 'Conservador': {'share_alvo': s_cons, 'label': f"{s_cons*100:.1f}%"},
                 'Provável': {'share_alvo': s_prov, 'label': f"{s_prov*100:.1f}%"},
                 'Otimista': {'share_alvo': s_otim, 'label': f"{s_otim*100:.1f}%"}
-            }
-        
-        # CORREÇÃO: Garantir que custom_shares seja passado corretamente
-        res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares)
-        
-        if res:
-            # Indicadores Principais
+                    # Cards de Indicadores Principais
+            st.markdown("#### 📈 Indicadores Principais")
             m1, m2, m3, m4, m5 = st.columns(5)
-            m1.markdown(f'<div class="metric-card"><div class="metric-label">Mercado 6M</div><div class="metric-value">R$ {format_br(res["mercado_6m"])}</div></div>', unsafe_allow_html=True)
-            m2.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Mercado</div><div class="metric-value">R$ {format_br(res["ticket_mercado"])}</div></div>', unsafe_allow_html=True)
-            m3.markdown(f'<div class="metric-card"><div class="metric-label">Ticket Cliente</div><div class="metric-value">R$ {format_br(row_foco["Ticket Cliente"])}</div></div>', unsafe_allow_html=True)
-            m4.markdown(f'<div class="metric-card"><div class="metric-label">Share Atual</div><div class="metric-value">{res["share_atual"]:.4f}%</div></div>', unsafe_allow_html=True)
-            m5.markdown(f'<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{analyzer.cliente_data.get("margem", 0)*100:.1f}%</div></div>', unsafe_allow_html=True)
             
+            # Recalcular share atual para garantir que não venha zerado
+            share_atual_calc = analyzer.calcular_share_atual(res['mercado_6m'])
+            
+            with m1:
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Mercado 6M</div><div class="metric-value">R$ {format_br(res['mercado_6m'])}</div></div>""", unsafe_allow_html=True)
+            with m2:
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Ticket Mercado</div><div class="metric-value">R$ {format_br(res['ticket_mercado'])}</div></div>""", unsafe_allow_html=True)
+            with m3:
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Ticket Cliente</div><div class="metric-value">R$ {format_br(row_foco['Ticket Cliente'])}</div></div>""", unsafe_allow_html=True)
+            with m4:
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Share Atual</div><div class="metric-value">{share_atual_calc:.4f}%</div></div>""", unsafe_allow_html=True)
+            with m5:
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{analyzer.cliente_data.get('margem', 0)*100:.1f}%</div></div>""", unsafe_allow_html=True)         
             # Gráficos de Score e Ticket
             g1, g2 = st.columns(2)
             with g1: st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
@@ -526,6 +529,7 @@ elif menu == "📊 Dashboard Executivo":
                 st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True)
             
             # SEÇÃO DE TENDÊNCIA E PROJEÇÃO
+            st.markdown("---")
             st.markdown("### 📈 Tendência e Projeção de Demanda")
             tendencia_res = analyzer.calcular_tendencia(row_foco['Categoria Macro'])
             
@@ -539,6 +543,7 @@ elif menu == "📊 Dashboard Executivo":
                 st.info("💡 Projeção baseada no crescimento médio histórico da categoria macro.")
 
             # SEÇÃO DE PLANO DE AÇÃO
+            st.markdown("---")
             st.markdown("### 🧠 Plano de Ação Sugerido")
             plano = analyzer.gerar_plano_acao(row_foco['Categoria Macro'])
             # Filtrar apenas para a subcategoria em foco para ser mais específico
@@ -554,6 +559,8 @@ elif menu == "📊 Dashboard Executivo":
                     <p style="margin-top: 10px; font-size: 1.1rem;">{sub_plano['Recomendação']}</p>
                 </div>
                 """, unsafe_allow_html=True)
+            else:
+                st.warning("Não foi possível gerar recomendações para esta subcategoria.")
 
             # SEÇÃO DE INSIGHTS
             st.markdown("### 💡 Insights dos Cenários")

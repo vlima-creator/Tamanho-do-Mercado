@@ -109,7 +109,8 @@ class MarketAnalyzer:
     
     def calcular_share_atual(self, mercado_6m: float) -> float:
         """Calcula share atual do cliente no mercado da subcategoria"""
-        faturamento_3m = self.cliente_data.get('faturamento_3m', 0)
+        # Garantir que estamos pegando o faturamento_3m corretamente
+        faturamento_3m = float(self.cliente_data.get('faturamento_3m', 0))
         faturamento_6m_projetado = faturamento_3m * 2
         
         if mercado_6m > 0:
@@ -185,6 +186,14 @@ class MarketAnalyzer:
             lucro_projetado = receita_projetada * margem
             delta = receita_projetada - faturamento_atual_6m
             
+            # Cálculo de crescimento: (Receita Projetada / Receita Atual) - 1
+            # Se a receita atual for 0, o crescimento é infinito ou 100% do projetado
+            crescimento_pct = 0
+            if faturamento_atual_6m > 0:
+                crescimento_pct = (delta / faturamento_atual_6m) * 100
+            elif receita_projetada > 0:
+                crescimento_pct = 100.0
+
             resultados.append({
                 'Cenário': nome,
                 'Share Alvo': config.get('label', f"{share_val*100:.2f}%"),
@@ -192,7 +201,7 @@ class MarketAnalyzer:
                 'Receita Projetada 6M': receita_projetada,
                 'Lucro Projetado 6M': lucro_projetado,
                 'Delta vs Atual': delta,
-                'Crescimento (%)': (delta / faturamento_atual_6m * 100) if faturamento_atual_6m > 0 else 0
+                'Crescimento (%)': crescimento_pct
             })
         
         return {
