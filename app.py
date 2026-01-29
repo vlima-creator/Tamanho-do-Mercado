@@ -604,13 +604,16 @@ elif menu == "📊 Dashboard Executivo":
             sub_plano = next((p for p in plano if p['Subcategoria'] == sub_foco), None)
             
             if sub_plano:
+                acoes_html = "".join([f"<li style='margin-bottom: 8px;'>{acao}</li>" for acao in sub_plano['Ações']])
                 st.markdown(f"""
-                <div class="insight-card" style="border-left-color: {sub_plano['Cor']}; background-color: #1E1E1E;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 1.2rem; font-weight: bold;">Prioridade: {sub_plano['Prioridade']}</span>
-                        <span style="background-color: {sub_plano['Cor']}; padding: 2px 10px; border-radius: 10px; font-size: 0.8rem;">Score: {sub_plano['Score']:.2f}</span>
+                <div class="insight-card" style="border-left-color: {sub_plano['Cor']}; background-color: #1E1E1E; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <span style="font-size: 1.3rem; font-weight: bold; color: {sub_plano['Cor']};">🎯 Prioridade: {sub_plano['Prioridade']}</span>
+                        <span style="background-color: {sub_plano['Cor']}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">Score: {sub_plano['Score']:.2f}</span>
                     </div>
-                    <p style="margin-top: 10px; font-size: 1.1rem;">{sub_plano['Recomendação']}</p>
+                    <ul style="list-style-type: none; padding-left: 0; font-size: 1.1rem; color: #E0E0E0;">
+                        {acoes_html}
+                    </ul>
                 </div>
                 """, unsafe_allow_html=True)
             else:

@@ -188,15 +188,14 @@ class MarketAnalyzer:
             lucro_projetado = receita_projetada * margem
             
             # Delta é a Receita Adicional (O que vamos ganhar ALÉM do que já temos)
-            # Se a receita projetada for menor que a atual, o delta é 0 (não vamos perder faturamento na simulação)
-            delta = max(0, receita_projetada - faturamento_atual_6m)
+            delta = receita_projetada - faturamento_atual_6m
             
-            # Cálculo de crescimento: Quanto o delta representa sobre o faturamento atual
+            # Cálculo de crescimento: Quanto a receita projetada representa de aumento sobre a atual
             crescimento_pct = 0
             if faturamento_atual_6m > 0:
                 crescimento_pct = (delta / faturamento_atual_6m) * 100
-            elif delta > 0:
-                crescimento_pct = 100.0 # Se não tinha faturamento, o crescimento é 100% do novo faturamento
+            elif receita_projetada > 0:
+                crescimento_pct = 100.0
 
             resultados.append({
                 'Cenário': nome,
@@ -293,7 +292,7 @@ class MarketAnalyzer:
         }
 
     def gerar_plano_acao(self, categoria: str = None) -> List[Dict]:
-        """Gera recomendações estratégicas baseadas no ranking e scores"""
+        """Gera recomendações estratégicas detalhadas e acionáveis"""
         df_ranking = self.gerar_ranking(categoria)
         if df_ranking.empty:
             return []
@@ -305,34 +304,50 @@ class MarketAnalyzer:
             leitura = row['Leitura']
             subcat = row['Subcategoria']
             mercado = row['Mercado (R$)']
+            ticket_mercado = row['Ticket Mercado']
+            ticket_cliente = row['Ticket Cliente']
             
-            recomendacao = ""
+            acoes = []
             prioridade = ""
             cor = ""
             
+            # Determinar Prioridade e Cor
             if status == "FOCO":
-                prioridade = "CRÍTICA"
-                cor = "red"
-                if leitura == "Ticket OK":
-                    recomendacao = f"Oportunidade de Ouro! Mercado grande e seu ticket está perfeito. Aumente o investimento em Ads e estoque imediatamente para ganhar share em {subcat}."
-                else:
-                    recomendacao = f"Prioridade Máxima! Mercado gigante, mas seu ticket precisa de ajuste ({leitura}). Corrija o preço para capturar o faturamento de R$ {mercado:,.0f}."
+                prioridade = "MÁXIMA (ESTRATÉGICO)"
+                cor = "#FF4B4B" # Vermelho vibrante
             elif status == "OK":
-                prioridade = "ALTA"
-                cor = "orange"
-                if leitura == "Ticket OK":
-                    recomendacao = f"Manutenção e Crescimento. Continue monitorando {subcat}. O fit de ticket está bom, foque em diferenciação de produto."
-                else:
-                    recomendacao = f"Ajuste Estratégico. O mercado é interessante, mas o ticket {leitura} está dificultando a conversão. Teste novos preços."
+                prioridade = "ALTA (OPORTUNIDADE)"
+                cor = "#FFA421" # Laranja
             else:
-                prioridade = "BAIXA"
-                cor = "gray"
-                recomendacao = f"Monitoramento Passivo. {subcat} possui score baixo ou ticket muito desalinhado. Mantenha apenas se a margem for muito superior."
-                
+                prioridade = "MÉDIA (MONITORAR)"
+                cor = "#00D4FF" # Azul claro
+
+            # 1. Análise de Preço (Ticket)
+            if leitura == "Ticket OK":
+                acoes.append(f"✅ **Preço Competitivo**: Seu ticket (R$ {ticket_cliente:,.2f}) está alinhado com o mercado (R$ {ticket_mercado:,.2f}).")
+                if status == "FOCO":
+                    acoes.append("🚀 **Ação**: Acelere o investimento em Ads (Publicidade) e garanta a profundidade de estoque.")
+            elif "Aumentar" in leitura:
+                diff = (ticket_mercado - ticket_cliente)
+                acoes.append(f"⚠️ **Preço Defasado**: Seu ticket está R$ {diff:,.2f} ABAIXO da média do mercado.")
+                acoes.append(f"💡 **Ação**: Você tem margem para subir o preço ou criar kits com maior valor agregado para aumentar o faturamento.")
+            else:
+                diff = (ticket_cliente - ticket_mercado)
+                acoes.append(f"⚠️ **Preço Elevado**: Seu ticket está R$ {diff:,.2f} ACIMA da média do mercado.")
+                acoes.append(f"💡 **Ação**: Avalie se o seu produto tem diferenciais que justifiquem o preço. Caso contrário, considere promoções agressivas para ganhar relevância.")
+
+            # 2. Análise de Mercado
+            if mercado > 1_000_000:
+                acoes.append(f"💰 **Volume de Mercado**: Esta subcategoria movimenta R$ {mercado/1_000_000:.1f}M em 6 meses. É um oceano de oportunidades.")
+            
+            # 3. Sugestão de Share
+            if status == "FOCO":
+                acoes.append("🎯 **Meta**: Foque em atingir pelo menos 1% de share nesta subcategoria nos próximos 90 dias.")
+
             plano.append({
                 "Subcategoria": subcat,
                 "Prioridade": prioridade,
-                "Recomendação": recomendacao,
+                "Ações": acoes,
                 "Cor": cor,
                 "Score": score
             })
