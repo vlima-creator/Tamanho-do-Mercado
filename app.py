@@ -114,20 +114,23 @@ def processar_excel(file):
         df_cliente = pd.read_excel(file, sheet_name="Cliente", header=None)
         
         # Tentar localizar as linhas pelo nome na primeira coluna (mais robusto)
-        def get_val_by_label(label, default=""):
+        def get_val_by_label(labels, default=""):
+            if isinstance(labels, str): labels = [labels]
             for i in range(len(df_cliente)):
-                if str(df_cliente.iloc[i, 0]).strip().lower() == label.lower():
-                    return df_cliente.iloc[i, 1]
+                cell_val = str(df_cliente.iloc[i, 0]).strip().lower()
+                for label in labels:
+                    if label.lower() in cell_val:
+                        return df_cliente.iloc[i, 1]
             return default
 
-        empresa = str(get_val_by_label("Empresa", "Empresa Exemplo"))
-        cat_macro_cliente = str(get_val_by_label("Categoria Macro", "Geral"))
-        ticket_medio = safe_float(get_val_by_label("Ticket Médio Geral", 0))
-        margem = safe_float(get_val_by_label("Margem Atual", 0))
-        fat_3m = safe_float(get_val_by_label("Faturamento Médio 3M", 0))
-        uni_3m = int(safe_float(get_val_by_label("Unidades Médias 3M", 0)))
-        range_p = safe_float(get_val_by_label("Range Permitido", 0.20))
-        ticket_c = get_val_by_label("Ticket Customizado", None)
+        empresa = str(get_val_by_label(["Empresa", "Nome"], "Empresa Exemplo"))
+        cat_macro_cliente = str(get_val_by_label(["Categoria Macro", "Macro"], "Geral"))
+        ticket_medio = safe_float(get_val_by_label(["Ticket Médio Geral", "Ticket Médio"], 0))
+        margem = safe_float(get_val_by_label(["Margem Atual", "Margem"], 0))
+        fat_3m = safe_float(get_val_by_label(["Faturamento Médio 3M", "Faturamento"], 0))
+        uni_3m = int(safe_float(get_val_by_label(["Unidades Médias 3M", "Unidades"], 0)))
+        range_p = safe_float(get_val_by_label(["Range Permitido", "Range"], 0.20))
+        ticket_c = get_val_by_label(["Ticket Customizado", "Customizado"], None)
         ticket_custom = safe_float(ticket_c) if pd.notna(ticket_c) and str(ticket_c).strip() != "" else None
         
         temp_analyzer.set_cliente_data(
@@ -138,33 +141,68 @@ def processar_excel(file):
         
         # 2. Mercado Categoria
         df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
+        
+        # Mapeamento flexível de colunas
+        def find_col(df, possible_names):
+            for col in df.columns:
+                if any(name.lower() in str(col).lower() for name in possible_names):
+                    return col
+            return None
+
+        col_cat = find_col(df_cat, ["Categoria"])
+        col_per = find_col(df_cat, ["Periodo", "Período"])
+        col_fat = find_col(df_cat, ["Faturamento"])
+        col_uni = find_col(df_cat, ["Unidades"])
+
         count_cat = 0
-        for _, row in df_cat.iterrows():
-            if pd.notna(row['Categoria']) and pd.notna(row['Periodo (texto)']):
-                temp_analyzer.add_mercado_categoria(
-                    str(row['Categoria']), str(row['Periodo (texto)']), 
-                    safe_float(row['Faturamento (R$)']), int(safe_float(row['Unidades']))
-                )
-                count_cat += 1
+        if col_cat and col_per:
+            for _, row in df_cat.iterrows():
+                if pd.notna(row[col_cat]) and pd.notna(row[col_per]):
+                    temp_analyzer.add_mercado_categoria(
+                        str(row[col_cat]), str(row[col_per]), 
+                        safe_float(row[col_fat]) if col_fat and col_fat in row and pd.notna(row[col_fat]) else 0, 
+                        int(safe_float(row[col_uni])) if col_uni and col_uni in row and pd.notna(row[col_uni]) else 0
+                    )
+                    count_cat += 1
                 
         # 3. Mercado Subcategoria
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
+        
+        col_sub_cat = find_col(df_sub, ["Categoria"])
+        col_sub_name = find_col(df_sub, ["Subcategoria"])
+        col_sub_fat = find_col(df_sub, ["Faturamento"])
+        col_sub_uni = find_col(df_sub, ["Unidades"])
+
         count_sub = 0
-        for _, row in df_sub.iterrows():
-            if pd.notna(row['Categoria']) and pd.notna(row['Subcategoria']):
-                temp_analyzer.add_mercado_subcategoria(
-                    str(row['Categoria']), str(row['Subcategoria']), 
-                    safe_float(row['Faturamento 6M (R$)']), int(safe_float(row['Unidades 6M']))
-                )
-                count_sub += 1
+        if col_sub_cat and col_sub_name:
+            for _, row in df_sub.iterrows():
+                if pd.notna(row[col_sub_cat]) and pd.notna(row[col_sub_name]):
+                    temp_analyzer.add_mercado_subcategoria(
+                        str(row[col_sub_cat]), str(row[col_sub_name]), 
+                        safe_float(row[col_sub_fat]) if col_sub_fat and col_sub_fat in row and pd.notna(row[col_sub_fat]) else 0, 
+                        int(safe_float(row[col_sub_uni])) if col_sub_uni and col_sub_uni in row and pd.notna(row[col_sub_uni]) else 0
+                    )
+                    count_sub += 1
         
         # ATUALIZAÇÃO CRÍTICA: Substituir o objeto na sessão
         st.session_state.analyzer = temp_analyzer
         st.session_state['data_version'] = datetime.now().timestamp()
-        st.session_state['last_upload_info'] = f"Empresa: {empresa} | Macros: {count_cat} | Subs: {count_sub}"
+        
+        # Feedback detalhado
+        detalhes = []
+        if fat_3m > 0: detalhes.append(f"Faturamento: {format_br(fat_3m)}")
+        if ticket_medio > 0: detalhes.append(f"Ticket: {format_br(ticket_medio)}")
+        
+        info_msg = f"✅ **{empresa}** importada com sucesso!\n\n"
+        info_msg += f"- 👤 Dados Cliente: {', '.join(detalhes) if detalhes else 'OK'}\n"
+        info_msg += f"- 📈 Categorias Macro: {count_cat} registros\n"
+        info_msg += f"- 🎯 Subcategorias: {count_sub} registros"
+        
+        st.session_state['last_upload_info'] = info_msg
         return True
     except Exception as e:
-        st.error(f"Erro no processamento: {str(e)}")
+        st.error(f"❌ Erro no processamento: {str(e)}")
+        st.info("Dica: Verifique se as abas 'Cliente', 'Mercado_Categoria' e 'Mercado_Subcategoria' existem e seguem o modelo.")
         return False
 
 # --- CSS CUSTOMIZADO ---
@@ -333,6 +371,8 @@ elif menu == "👤 Dados do Cliente":
                 margem=margem, faturamento_3m=parse_large_number(fat_input), 
                 unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido
             )
+            # Forçar atualização da versão para que os inputs reflitam os dados salvos (especialmente os parseados)
+            st.session_state['data_version'] = datetime.now().timestamp()
             st.toast("✅ Dados salvos!", icon="💾")
             st.rerun()
 
