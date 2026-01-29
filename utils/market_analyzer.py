@@ -76,27 +76,36 @@ class MarketAnalyzer:
             return "ACIMA", "Reduzir ticket"
     
     def calcular_score(self, categoria: str, faturamento_6m: float, ticket_mercado: float) -> float:
-        """Calcula score de priorização dentro de uma categoria"""
+        """Calcula score de priorização baseado em 3 pilares: Mercado, Preço e Lucratividade"""
         if categoria not in self.mercado_subcategorias or not self.mercado_subcategorias[categoria]:
             return 0.0
             
-        # Normalizar tamanho de mercado (0-1) dentro da categoria
+        # 1. Pilar Mercado (Peso 50%): Tamanho relativo da oportunidade
         max_faturamento = max([s['faturamento_6m'] for s in self.mercado_subcategorias[categoria]])
         score_mercado = faturamento_6m / max_faturamento if max_faturamento > 0 else 0
         
-        # Calcular score de fit de ticket (0-1)
+        # 2. Pilar Preço (Peso 30%): Eficiência e Competitividade
         ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         range_pct = self.cliente_data.get('range_permitido', 0.20)
-        
         diff_pct = abs(ticket_cliente - ticket_mercado) / ticket_mercado if ticket_mercado > 0 else 1
         
-        # Score de fit: 1.0 se dentro do range, 0 se fora (conforme Excel v8)
-        score_fit = 1.0 if diff_pct <= range_pct else 0.0
+        # Score de preço é maior quanto mais próximo do ticket médio, 
+        # mas penaliza menos se estiver abaixo (oportunidade de volume)
+        if diff_pct <= range_pct:
+            score_preco = 1.0
+        elif ticket_cliente < ticket_mercado:
+            score_preco = 0.6 # Abaixo do range: ainda competitivo por volume
+        else:
+            score_preco = 0.2 # Acima do range: barreira de entrada maior
+            
+        # 3. Pilar Lucratividade (Peso 20%): Margem do cliente
+        margem = self.cliente_data.get('margem', 0)
+        score_lucro = margem # Assume que margem já está entre 0 e 1
         
         # Score final ponderado
-        score_final = (score_mercado * 0.7) + (score_fit * 0.3)
+        score_final = (score_mercado * 0.5) + (score_preco * 0.3) + (score_lucro * 0.2)
         
-        return score_final
+        return min(1.0, score_final)
     
     def calcular_status(self, score: float, fit_ticket: str) -> str:
         """Determina status baseado no score e fit de ticket"""

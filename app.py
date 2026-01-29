@@ -535,22 +535,24 @@ elif menu == "📊 Dashboard Executivo":
             res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares)
             
             # Cards de Indicadores Principais
-            st.markdown("#### 📈 Indicadores Principais")
+            st.markdown("#### 📈 Indicadores de Market Share")
             m1, m2, m3, m4, m5 = st.columns(5)
             
-            # Recalcular share atual para garantir que não venha zerado
+            # Recalcular share atual
             share_atual_calc = analyzer.calcular_share_atual(res['mercado_6m'])
             
             with m1:
-                st.markdown(f"""<div class="metric-card"><div class="metric-label">Mercado 6M</div><div class="metric-value">R$ {format_br(res['mercado_6m'])}</div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Tamanho Mercado (6M)</div><div class="metric-value">R$ {format_br(res['mercado_6m'])}</div></div>""", unsafe_allow_html=True)
             with m2:
-                st.markdown(f"""<div class="metric-card"><div class="metric-label">Ticket Mercado</div><div class="metric-value">R$ {format_br(res['ticket_mercado'])}</div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Seu Share Atual</div><div class="metric-value">{share_atual_calc:.2f}%</div></div>""", unsafe_allow_html=True)
             with m3:
-                st.markdown(f"""<div class="metric-card"><div class="metric-label">Ticket Cliente</div><div class="metric-value">R$ {format_br(row_foco['Ticket Cliente'])}</div></div>""", unsafe_allow_html=True)
+                # Share Alvo baseado no cenário Provável
+                share_alvo = custom_shares['Provável']['share_alvo'] * 100
+                st.markdown(f"""<div class="metric-card" style="border-top-color: #f1c40f;"><div class="metric-label">Meta de Share (Provável)</div><div class="metric-value">{share_alvo:.1f}%</div></div>""", unsafe_allow_html=True)
             with m4:
-                st.markdown(f"""<div class="metric-card"><div class="metric-label">Share Atual</div><div class="metric-value">{share_atual_calc:.4f}%</div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Ticket Médio Mercado</div><div class="metric-value">R$ {format_br(res['ticket_mercado'])}</div></div>""", unsafe_allow_html=True)
             with m5:
-                st.markdown(f"""<div class="metric-card"><div class="metric-label">Margem</div><div class="metric-value">{analyzer.cliente_data.get('margem', 0)*100:.1f}%</div></div>""", unsafe_allow_html=True)         
+                st.markdown(f"""<div class="metric-card"><div class="metric-label">Sua Margem</div><div class="metric-value">{analyzer.cliente_data.get('margem', 0)*100:.1f}%</div></div>""", unsafe_allow_html=True)         
             # Gráficos de Score e Ticket
             g1, g2 = st.columns(2)
             with g1: st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
