@@ -366,11 +366,14 @@ elif menu == "👤 Dados do Cliente":
             range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('range_permitido', 0.20) * 100), key=f"rp_{ver}")
         
         if st.form_submit_button("💾 Salvar Dados"):
+            fat_val_parsed = parse_large_number(fat_input)
             analyzer.set_cliente_data(
                 empresa=empresa, categoria="Geral", ticket_medio=ticket_medio,
-                margem=margem, faturamento_3m=parse_large_number(fat_input), 
+                margem=margem, faturamento_3m=fat_val_parsed, 
                 unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido
             )
+            # Garantir que a chave faturamento_3m esteja presente explicitamente
+            analyzer.cliente_data['faturamento_3m'] = fat_val_parsed
             # Forçar atualização da versão para que os inputs reflitam os dados salvos (especialmente os parseados)
             st.session_state['data_version'] = datetime.now().timestamp()
             st.toast("✅ Dados salvos!", icon="💾")

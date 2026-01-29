@@ -167,7 +167,9 @@ class MarketAnalyzer:
         ticket_usado = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         margem = self.cliente_data.get('margem', 0)
         # Faturamento atual do cliente (3 meses) -> Projetar para 6 meses para comparação justa
-        faturamento_cliente_3m = float(self.cliente_data.get('faturamento_3m', 0))
+        # Tentar pegar de faturamento_3m ou faturamento_medio_3m (compatibilidade)
+        fat_3m = self.cliente_data.get('faturamento_3m') or self.cliente_data.get('faturamento_medio_3m', 0)
+        faturamento_cliente_3m = float(fat_3m) if fat_3m else 0
         faturamento_atual_6m = faturamento_cliente_3m * 2
         
         # Usar shares customizados se fornecidos, senão usar padrão
