@@ -604,12 +604,18 @@ elif menu == "📊 Dashboard Executivo":
             sub_plano = next((p for p in plano if p['Subcategoria'] == sub_foco), None)
             
             if sub_plano:
-                acoes_html = "".join([f"<li style='margin-bottom: 8px;'>{acao}</li>" for acao in sub_plano['Ações']])
+                # Trava de segurança para compatibilidade entre versões (KeyError: 'Ações')
+                lista_acoes = sub_plano.get('Ações', [])
+                if not lista_acoes and 'Recomendação' in sub_plano:
+                    lista_acoes = [sub_plano['Recomendação']]
+                
+                acoes_html = "".join([f"<li style='margin-bottom: 8px;'>{acao}</li>" for acao in lista_acoes])
+                
                 st.markdown(f"""
-                <div class="insight-card" style="border-left-color: {sub_plano['Cor']}; background-color: #1E1E1E; padding: 20px;">
+                <div class="insight-card" style="border-left-color: {sub_plano.get('Cor', '#3498db')}; background-color: #1E1E1E; padding: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <span style="font-size: 1.3rem; font-weight: bold; color: {sub_plano['Cor']};">🎯 Prioridade: {sub_plano['Prioridade']}</span>
-                        <span style="background-color: {sub_plano['Cor']}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">Score: {sub_plano['Score']:.2f}</span>
+                        <span style="font-size: 1.3rem; font-weight: bold; color: {sub_plano.get('Cor', '#3498db')};">🎯 Prioridade: {sub_plano.get('Prioridade', 'N/A')}</span>
+                        <span style="background-color: {sub_plano.get('Cor', '#3498db')}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">Score: {sub_plano.get('Score', 0):.2f}</span>
                     </div>
                     <ul style="list-style-type: none; padding-left: 0; font-size: 1.1rem; color: #E0E0E0;">
                         {acoes_html}
