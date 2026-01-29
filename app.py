@@ -528,6 +528,9 @@ elif menu == "📊 Dashboard Executivo":
                 'Otimista': {'share_alvo': s_otim, 'label': f"{s_otim*100:.1f}%"}
             }
             
+            # Obter resultados da simulação
+            res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares)
+            
             # Cards de Indicadores Principais
             st.markdown("#### 📈 Indicadores Principais")
             m1, m2, m3, m4, m5 = st.columns(5)
