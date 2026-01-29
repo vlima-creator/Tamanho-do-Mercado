@@ -563,10 +563,19 @@ elif menu == "📊 Dashboard Executivo":
             c_tab1, c_tab2 = st.tabs(["Tabela de Dados", "Gráfico Comparativo"])
             with c_tab1:
                 df_disp_cen = df_cen.copy()
-                for col in ['Receita Projetada 6M', 'Lucro Projetado 6M', 'Delta vs Atual']:
-                    df_disp_cen[col] = df_disp_cen[col].apply(format_br)
                 
-                # Formatar Crescimento (%) com padrão brasileiro
+                # Função para colorir valores
+                def color_delta(val):
+                    color = '#2ecc71' if val > 0 else ('#e74c3c' if val < 0 else '#A0A0A0')
+                    return f'color: {color}; font-weight: bold'
+
+                # Aplicar formatação ao dataframe
+                styled_df = df_disp_cen.style.applymap(color_delta, subset=['Delta vs Atual', 'Crescimento (%)'])
+                
+                # Formatação de exibição
+                df_disp_cen['Receita Projetada 6M'] = df_disp_cen['Receita Projetada 6M'].apply(format_br)
+                df_disp_cen['Lucro Projetado 6M'] = df_disp_cen['Lucro Projetado 6M'].apply(format_br)
+                df_disp_cen['Delta vs Atual'] = df_disp_cen['Delta vs Atual'].apply(format_br)
                 df_disp_cen['Crescimento (%)'] = df_disp_cen['Crescimento (%)'].apply(lambda x: f"{x:,.1f}%".replace(",", "X").replace(".", ",").replace("X", "."))
                 
                 st.dataframe(df_disp_cen, use_container_width=True)
@@ -613,33 +622,39 @@ elif menu == "📊 Dashboard Executivo":
             
             with i_col1:
                 row = df_cen.iloc[0]
+                c_val = row['Crescimento (%)']
+                c_color = "#2ecc71" if c_val > 0 else ("#e74c3c" if c_val < 0 else "#A0A0A0")
                 st.markdown(f"""
                 <div class="insight-card" style="border-left-color: #2ecc71;">
                     <div class="insight-title">🟢 Cenário Conservador</div>
                     • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
                     • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
-                    • Crescimento: {format_br(row['Crescimento (%)'])}%
+                    • Crescimento: <span style="color: {c_color}; font-weight: bold;">{c_val:,.1f}%</span>
                 </div>
                 """, unsafe_allow_html=True)
                 
             with i_col2:
                 row = df_cen.iloc[1]
+                c_val = row['Crescimento (%)']
+                c_color = "#2ecc71" if c_val > 0 else ("#e74c3c" if c_val < 0 else "#A0A0A0")
                 st.markdown(f"""
                 <div class="insight-card" style="border-left-color: #f1c40f;">
                     <div class="insight-title">🟡 Cenário Provável</div>
                     • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
                     • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
-                    • Crescimento: {format_br(row['Crescimento (%)'])}%
+                    • Crescimento: <span style="color: {c_color}; font-weight: bold;">{c_val:,.1f}%</span>
                 </div>
                 """, unsafe_allow_html=True)
                 
             with i_col3:
                 row = df_cen.iloc[2]
+                c_val = row['Crescimento (%)']
+                c_color = "#2ecc71" if c_val > 0 else ("#e74c3c" if c_val < 0 else "#A0A0A0")
                 st.markdown(f"""
                 <div class="insight-card" style="border-left-color: #e74c3c;">
                     <div class="insight-title">🔴 Cenário Otimista</div>
                     • Receita: R$ {format_br(row['Receita Projetada 6M'])}<br>
                     • Lucro: R$ {format_br(row['Lucro Projetado 6M'])}<br>
-                    • Crescimento: {format_br(row['Crescimento (%)'])}%
+                    • Crescimento: <span style="color: {c_color}; font-weight: bold;">{c_val:,.1f}%</span>
                 </div>
                 """, unsafe_allow_html=True)

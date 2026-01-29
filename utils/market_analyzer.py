@@ -166,7 +166,9 @@ class MarketAnalyzer:
         mercado_6m = subcat_data['faturamento_6m']
         ticket_usado = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         margem = self.cliente_data.get('margem', 0)
-        faturamento_atual_6m = self.cliente_data.get('faturamento_3m', 0) * 2
+        # Faturamento atual do cliente (3 meses) -> Projetar para 6 meses para comparação justa
+        faturamento_cliente_3m = float(self.cliente_data.get('faturamento_3m', 0))
+        faturamento_atual_6m = faturamento_cliente_3m * 2
         
         # Usar shares customizados se fornecidos, senão usar padrão
         if custom_shares:
@@ -184,15 +186,17 @@ class MarketAnalyzer:
             share_val = config['share_alvo']
             receita_projetada = mercado_6m * share_val
             lucro_projetado = receita_projetada * margem
-            delta = receita_projetada - faturamento_atual_6m
             
-            # Cálculo de crescimento: (Receita Projetada / Receita Atual) - 1
-            # Se a receita atual for 0, o crescimento é infinito ou 100% do projetado
+            # Delta é a Receita Adicional (O que vamos ganhar ALÉM do que já temos)
+            # Se a receita projetada for menor que a atual, o delta é 0 (não vamos perder faturamento na simulação)
+            delta = max(0, receita_projetada - faturamento_atual_6m)
+            
+            # Cálculo de crescimento: Quanto o delta representa sobre o faturamento atual
             crescimento_pct = 0
             if faturamento_atual_6m > 0:
                 crescimento_pct = (delta / faturamento_atual_6m) * 100
-            elif receita_projetada > 0:
-                crescimento_pct = 100.0
+            elif delta > 0:
+                crescimento_pct = 100.0 # Se não tinha faturamento, o crescimento é 100% do novo faturamento
 
             resultados.append({
                 'Cenário': nome,
