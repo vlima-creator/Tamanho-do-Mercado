@@ -175,13 +175,16 @@ class MarketAnalyzer:
         mercado_6m = subcat_data['faturamento_6m']
         ticket_usado = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         margem = self.cliente_data.get('margem', 0)
-        # Faturamento atual do cliente (3 meses) -> Projetar para 6 meses para comparação justa
-        # Tentar pegar de faturamento_3m ou faturamento_medio_3m (compatibilidade)
-        fat_3m = self.cliente_data.get('faturamento_3m') or self.cliente_data.get('faturamento_medio_3m', 0)
+        # Faturamento atual do cliente (3 meses)
+        # IMPORTANTE: Se o usuário digitou o faturamento total de 3 meses, não multiplicamos por nada que possa distorcer.
+        # Vamos comparar a projeção de 6 meses do mercado com o que o cliente quer ganhar.
+        fat_3m = self.cliente_data.get('faturamento_3m', 0)
         faturamento_cliente_3m = float(fat_3m) if fat_3m else 0
-        faturamento_atual_6m = faturamento_cliente_3m * 2
         
-        # Usar shares customizados se fornecidos, senão usar padrão
+        # Para uma comparação justa de 6 meses:
+        faturamento_base_comparacao = faturamento_cliente_3m * 2
+        
+        # Usar shares customizados se fornecidos
         if custom_shares:
             cenarios = custom_shares
         else:
@@ -198,13 +201,13 @@ class MarketAnalyzer:
             receita_projetada = mercado_6m * share_val
             lucro_projetado = receita_projetada * margem
             
-            # Delta é a Receita Adicional (O que vamos ganhar ALÉM do que já temos)
-            delta = receita_projetada - faturamento_atual_6m
+            # Delta é o GANHO REAL: Receita Projetada - Faturamento Base
+            delta = receita_projetada - faturamento_base_comparacao
             
-            # Cálculo de crescimento: Quanto a receita projetada representa de aumento sobre a atual
+            # Crescimento: (Receita Projetada / Faturamento Base) - 1
             crescimento_pct = 0
-            if faturamento_atual_6m > 0:
-                crescimento_pct = (delta / faturamento_atual_6m) * 100
+            if faturamento_base_comparacao > 0:
+                crescimento_pct = ((receita_projetada / faturamento_base_comparacao) - 1) * 100
             elif receita_projetada > 0:
                 crescimento_pct = 100.0
 
@@ -279,20 +282,27 @@ class MarketAnalyzer:
 
     def calcular_tendencia(self, categoria: str) -> Dict:
         """Calcula a tendência de crescimento e faz projeção para os próximos 3 meses"""
+        # Faturamento base do cliente para a projeção
+        fat_base = float(self.cliente_data.get('faturamento_3m', 0))
+        
         if categoria not in self.mercado_categoria or len(self.mercado_categoria[categoria]) < 2:
-            return {"tendencia": "Estável", "crescimento_mensal": 0, "projecao_3m": 0}
+            # Se não houver histórico de mercado, a projeção é o próprio faturamento atual do cliente
+            return {
+                "tendencia": "Estável", 
+                "crescimento_mensal": 0, 
+                "projecao_3m": fat_base
+            }
             
         df = pd.DataFrame(self.mercado_categoria[categoria])
-        # Ordenar por período (assumindo formato Jan/25, Fev/25...)
-        # Para simplificar, vamos usar a ordem de inserção ou tentar converter
         df['faturamento'] = pd.to_numeric(df['faturamento'])
         
-        # Cálculo de crescimento médio mensal
+        # Cálculo de crescimento médio mensal do mercado
         df['pct_change'] = df['faturamento'].pct_change()
         crescimento_medio = df['pct_change'].mean()
+        if pd.isna(crescimento_medio): crescimento_medio = 0.0
         
-        ult_faturamento = df['faturamento'].iloc[-1]
-        projecao = ult_faturamento * (1 + crescimento_medio) ** 3
+        # A projeção de 3 meses é baseada no faturamento do CLIENTE seguindo a tendência do mercado
+        projecao = fat_base * (1 + crescimento_medio) ** 3 if fat_base > 0 else 0.0
         
         tendencia = "Alta" if crescimento_medio > 0.02 else ("Baixa" if crescimento_medio < -0.02 else "Estável")
         

@@ -639,6 +639,12 @@ elif menu == "📊 Dashboard Executivo":
 
             # SEÇÃO DE INSIGHTS
             st.markdown("### 💡 Insights dos Cenários")
+            
+            # Verificação de segurança para o faturamento base
+            fat_base_3m = float(analyzer.cliente_data.get('faturamento_3m', 0))
+            if fat_base_3m == 0:
+                st.warning("⚠️ Seu faturamento atual está zerado nos 'Dados do Cliente'. As porcentagens de crescimento podem não refletir a realidade.")
+
             i_col1, i_col2, i_col3 = st.columns(3)
             
             with i_col1:
