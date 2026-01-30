@@ -599,14 +599,25 @@ elif menu == "📊 Dashboard Executivo":
             st.markdown("### 📈 Tendência e Projeção de Demanda")
             tendencia_res = analyzer.calcular_tendencia(row_foco['Categoria Macro'])
             
-            t_col1, t_col2, t_col3 = st.columns(3)
+            t_col1, t_col2, t_col3 = st.columns([1, 1, 2])
             with t_col1:
                 st.metric("Tendência Atual", tendencia_res['tendencia'], 
                           delta=f"{tendencia_res['crescimento_mensal']:.1f}% mensal")
             with t_col2:
-                st.metric("Projeção Faturamento (3 Meses)", f"R$ {format_br(tendencia_res['projecao_3m'])}")
+                st.metric("Projeção Total (3 Meses)", f"R$ {format_br(tendencia_res['projecao_3m'])}")
             with t_col3:
-                st.info("💡 Projeção baseada no crescimento médio histórico da categoria macro.")
+                # Gráfico de Projeção Mensal
+                meses = ["Mês 1", "Mês 2", "Mês 3"]
+                valores = tendencia_res.get('mensal', [0, 0, 0])
+                df_proj = pd.DataFrame({"Mês": meses, "Faturamento": valores})
+                
+                fig_proj = px.bar(df_proj, x="Mês", y="Faturamento", 
+                                 text=[f"R$ {format_br(v)}" for v in valores],
+                                 title="Projeção Mensal Detalhada",
+                                 color_discrete_sequence=["#3498db"])
+                fig_proj.update_traces(textposition='outside')
+                fig_proj.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0))
+                st.plotly_chart(fig_proj, use_container_width=True)
 
             # SEÇÃO DE PLANO DE AÇÃO
             st.markdown("---")

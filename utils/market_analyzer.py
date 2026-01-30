@@ -281,16 +281,17 @@ class MarketAnalyzer:
                     sub['ticket_medio'] = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
 
     def calcular_tendencia(self, categoria: str) -> Dict:
-        """Calcula a tendência de crescimento e faz projeção para os próximos 3 meses"""
-        # Faturamento base do cliente para a projeção
-        fat_base = float(self.cliente_data.get('faturamento_3m', 0))
+        """Calcula a tendência de crescimento e faz projeção mensal para os próximos 3 meses"""
+        # Faturamento base do cliente (média mensal dos últimos 3 meses)
+        fat_total_3m = float(self.cliente_data.get('faturamento_3m', 0))
+        fat_mensal_base = fat_total_3m / 3 if fat_total_3m > 0 else 0.0
         
         if categoria not in self.mercado_categoria or len(self.mercado_categoria[categoria]) < 2:
-            # Se não houver histórico de mercado, a projeção é o próprio faturamento atual do cliente
             return {
                 "tendencia": "Estável", 
                 "crescimento_mensal": 0, 
-                "projecao_3m": fat_base
+                "projecao_3m": fat_total_3m,
+                "mensal": [fat_mensal_base] * 3
             }
             
         df = pd.DataFrame(self.mercado_categoria[categoria])
@@ -301,15 +302,22 @@ class MarketAnalyzer:
         crescimento_medio = df['pct_change'].mean()
         if pd.isna(crescimento_medio): crescimento_medio = 0.0
         
-        # A projeção de 3 meses é baseada no faturamento do CLIENTE seguindo a tendência do mercado
-        projecao = fat_base * (1 + crescimento_medio) ** 3 if fat_base > 0 else 0.0
+        # Projeção mensal (Mês 1, Mês 2, Mês 3)
+        proj_mensal = []
+        valor_atual = fat_mensal_base
+        for _ in range(3):
+            valor_atual = valor_atual * (1 + crescimento_medio)
+            proj_mensal.append(valor_atual)
+            
+        projecao_total_3m = sum(proj_mensal)
         
         tendencia = "Alta" if crescimento_medio > 0.02 else ("Baixa" if crescimento_medio < -0.02 else "Estável")
         
         return {
             "tendencia": tendencia,
             "crescimento_mensal": crescimento_medio * 100,
-            "projecao_3m": projecao
+            "projecao_3m": projecao_total_3m,
+            "mensal": proj_mensal
         }
 
     def gerar_plano_acao(self, categoria: str = None) -> List[Dict]:
