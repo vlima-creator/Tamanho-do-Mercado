@@ -367,14 +367,15 @@ elif menu == "👤 Dados do Cliente":
         
         if st.form_submit_button("💾 Salvar Dados"):
             fat_val_parsed = parse_large_number(fat_input)
-            analyzer.set_cliente_data(
+            st.session_state.analyzer.set_cliente_data(
                 empresa=empresa, categoria="Geral", ticket_medio=ticket_medio,
                 margem=margem, faturamento_3m=fat_val_parsed, 
                 unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido
             )
-            # Garantir que a chave faturamento_3m esteja presente explicitamente
-            analyzer.cliente_data['faturamento_3m'] = fat_val_parsed
-            # Forçar atualização da versão para que os inputs reflitam os dados salvos (especialmente os parseados)
+            # Garantir persistência absoluta do faturamento para os cálculos
+            st.session_state.analyzer.cliente_data['faturamento_3m'] = fat_val_parsed
+            st.session_state.analyzer.cliente_data['faturamento_medio_3m'] = fat_val_parsed
+            
             st.session_state['data_version'] = datetime.now().timestamp()
             st.toast("✅ Dados salvos!", icon="💾")
             st.rerun()
@@ -469,25 +470,29 @@ elif menu == "🎯 Mercado Subcategorias":
                     analyzer.add_mercado_subcategoria(cat_sel, sub, parse_large_number(fat_6m), int(parse_large_number(uni_6m)))
                     st.rerun()
         
-        if cat_sel in analyzer.mercado_subcategorias:
-            df_sub_raw = pd.DataFrame(analyzer.mercado_subcategorias[cat_sel])
+        # ATUALIZAÇÃO: Garantir que as subcategorias sejam lidas corretamente do analyzer na sessão
+        if cat_sel in st.session_state.analyzer.mercado_subcategorias:
+            df_sub_raw = pd.DataFrame(st.session_state.analyzer.mercado_subcategorias[cat_sel])
             
             st.markdown("### 📋 Lista de Subcategorias")
-            for i, row in df_sub_raw.iterrows():
-                with st.expander(f"🔹 {row['subcategoria']} - R$ {format_br(row['faturamento_6m'])}"):
-                    with st.form(f"edit_sub_{cat_sel}_{i}"):
-                        c1, c2, c3 = st.columns(3)
-                        new_sub = c1.text_input("Nome Subcategoria", value=row['subcategoria'])
-                        new_fat = c2.text_input("Faturamento 6M (R$)", value=str(row['faturamento_6m']))
-                        new_uni = c3.text_input("Unidades 6M", value=str(row['unidades_6m']))
-                        
-                        b1, b2 = st.columns(2)
-                        if b1.form_submit_button("💾 Salvar"):
-                            analyzer.editar_mercado_subcategoria(cat_sel, row['subcategoria'], new_sub, parse_large_number(new_fat), int(parse_large_number(new_uni)))
-                            st.rerun()
-                        if b2.form_submit_button("🗑️ Excluir", type="secondary"):
-                            analyzer.remover_mercado_subcategoria(cat_sel, row['subcategoria'])
-                            st.rerun()
+            if df_sub_raw.empty:
+                st.info("Nenhuma subcategoria cadastrada para esta categoria macro.")
+            else:
+                for i, row in df_sub_raw.iterrows():
+                    with st.expander(f"🔹 {row['subcategoria']} - R$ {format_br(row['faturamento_6m'])}"):
+                        with st.form(f"edit_sub_{cat_sel}_{i}"):
+                            c1, c2, c3 = st.columns(3)
+                            new_sub = c1.text_input("Nome Subcategoria", value=row['subcategoria'])
+                            new_fat = c2.text_input("Faturamento 6M (R$)", value=str(row['faturamento_6m']))
+                            new_uni = c3.text_input("Unidades 6M", value=str(row['unidades_6m']))
+                            
+                            b1, b2 = st.columns(2)
+                            if b1.form_submit_button("💾 Salvar Alterações"):
+                                analyzer.editar_mercado_subcategoria(cat_sel, row['subcategoria'], new_sub, parse_large_number(new_fat), int(parse_large_number(new_uni)))
+                                st.rerun()
+                            if b2.form_submit_button("🗑️ Excluir Subcategoria", type="secondary"):
+                                analyzer.remover_mercado_subcategoria(cat_sel, row['subcategoria'])
+                                st.rerun()
             
             st.markdown("---")
             df_sub_disp = df_sub_raw.copy()
