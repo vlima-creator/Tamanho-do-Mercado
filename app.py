@@ -352,18 +352,20 @@ elif menu == "👤 Dados do Cliente":
     st.markdown("## 👤 Dados do Cliente")
     ver = st.session_state.get('data_version', 0)
     
+    st.info("💡 **Dica:** Você pode digitar valores como '1.5M' para 1 milhão e meio ou '500k' para 500 mil nos campos de faturamento e unidades.")
+    
     with st.form("form_cliente"):
         col1, col2 = st.columns(2)
         with col1:
-            empresa = st.text_input("Nome da Empresa", value=analyzer.cliente_data.get('empresa', ''), key=f"emp_{ver}")
-            ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f", key=f"tm_{ver}")
-            margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1, key=f"mg_{ver}")
+            empresa = st.text_input("Nome da Empresa", value=analyzer.cliente_data.get('empresa', ''), placeholder="Ex: Minha Empresa LTDA", key=f"emp_{ver}")
+            ticket_medio = st.number_input("Ticket Médio Geral (R$)", min_value=0.0, value=float(analyzer.cliente_data.get('ticket_medio', 0.0)), format="%.2f", help="Ex: 150.00", key=f"tm_{ver}")
+            margem = st.number_input("Margem Atual (%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('margem', 0.0) * 100), step=0.1, help="Ex: 15.5 para 15,5%", key=f"mg_{ver}")
         with col2:
             fat_val = analyzer.cliente_data.get('faturamento_3m', 0.0)
-            fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "", key=f"fat_{ver}")
+            fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "", placeholder="Ex: 1.2M ou 1200000", key=f"fat_{ver}")
             uni_val = analyzer.cliente_data.get('unidades_3m', 0)
-            uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "", key=f"uni_{ver}")
-            range_permitido = st.number_input("Range Permitido (±%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('range_permitido', 0.20) * 100), key=f"rp_{ver}")
+            uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "", placeholder="Ex: 5000 ou 5k", key=f"uni_{ver}")
+            range_permitido = st.number_input("Range de Preço Permitido (±%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_state.get('range_permitido', 0.20) * 100) if hasattr(analyzer, 'cliente_state') else float(analyzer.cliente_data.get('range_permitido', 0.20) * 100), help="Variação aceitável entre seu preço e o mercado (Padrão: 20%)", key=f"rp_{ver}")
         
         if st.form_submit_button("💾 Salvar Dados"):
             fat_val_parsed = parse_large_number(fat_input)
