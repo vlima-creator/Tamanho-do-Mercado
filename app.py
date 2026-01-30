@@ -7,6 +7,7 @@ Dashboard interativo para análise estratégica de múltiplas categorias macro
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from datetime import datetime
 import sys
 import os
