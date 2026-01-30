@@ -473,16 +473,26 @@ elif menu == "🎯 Mercado Subcategorias":
                     analyzer.add_mercado_subcategoria(cat_sel, sub, parse_large_number(fat_6m), int(parse_large_number(uni_6m)))
                     st.rerun()
         
-        # ATUALIZAÇÃO: Garantir que as subcategorias sejam lidas corretamente do analyzer na sessão
-        if cat_sel in st.session_state.analyzer.mercado_subcategorias:
-            df_sub_raw = pd.DataFrame(st.session_state.analyzer.mercado_subcategorias[cat_sel])
+        # ATUALIZAÇÃO: Garantir que as subcategorias sejam lidas corretamente do analyzer
+        # Usar o objeto 'analyzer' que já está sincronizado com o session_state
+        if cat_sel in analyzer.mercado_subcategorias:
+            subcategorias_lista = analyzer.mercado_subcategorias[cat_sel]
             
             st.markdown("### 📋 Lista de Subcategorias")
-            if df_sub_raw.empty:
+            if not subcategorias_lista:
                 st.info("Nenhuma subcategoria cadastrada para esta categoria macro.")
             else:
+                df_sub_raw = pd.DataFrame(subcategorias_lista)
+                
+                # Tabela de visualização rápida
+                df_sub_disp = df_sub_raw.copy()
+                df_sub_disp['faturamento_6m'] = df_sub_disp['faturamento_6m'].apply(format_br)
+                df_sub_disp['ticket_medio'] = df_sub_disp['ticket_medio'].apply(format_br)
+                st.dataframe(df_sub_disp, use_container_width=True)
+                
+                st.markdown("#### ✏️ Editar Subcategorias")
                 for i, row in df_sub_raw.iterrows():
-                    with st.expander(f"🔹 {row['subcategoria']} - R$ {format_br(row['faturamento_6m'])}"):
+                    with st.expander(f"Editar: {row['subcategoria']}"):
                         with st.form(f"edit_sub_{cat_sel}_{i}"):
                             c1, c2, c3 = st.columns(3)
                             new_sub = c1.text_input("Nome Subcategoria", value=row['subcategoria'])
@@ -496,12 +506,6 @@ elif menu == "🎯 Mercado Subcategorias":
                             if b2.form_submit_button("🗑️ Excluir Subcategoria", type="secondary"):
                                 analyzer.remover_mercado_subcategoria(cat_sel, row['subcategoria'])
                                 st.rerun()
-            
-            st.markdown("---")
-            df_sub_disp = df_sub_raw.copy()
-            df_sub_disp['faturamento_6m'] = df_sub_disp['faturamento_6m'].apply(format_br)
-            df_sub_disp['ticket_medio'] = df_sub_disp['ticket_medio'].apply(format_br)
-            st.dataframe(df_sub_disp, use_container_width=True)
 
 # ====================
 # SEÇÃO: DASHBOARD
