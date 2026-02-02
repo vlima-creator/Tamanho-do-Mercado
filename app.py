@@ -366,14 +366,22 @@ elif menu == "👤 Dados do Cliente":
             fat_input = st.text_input("Faturamento Médio 3M (R$)", value=str(fat_val) if fat_val > 0 else "", placeholder="Ex: 1.2M ou 1200000", key=f"fat_{ver}")
             uni_val = analyzer.cliente_data.get('unidades_3m', 0)
             uni_input = st.text_input("Unidades Médias 3M", value=str(uni_val) if uni_val > 0 else "", placeholder="Ex: 5000 ou 5k", key=f"uni_{ver}")
-            range_permitido = st.number_input("Range de Preço Permitido (±%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_state.get('range_permitido', 0.20) * 100) if hasattr(analyzer, 'cliente_state') else float(analyzer.cliente_data.get('range_permitido', 0.20) * 100), help="Variação aceitável entre seu preço e o mercado (Padrão: 20%)", key=f"rp_{ver}")
+            range_permitido = st.number_input("Range de Preço Permitido (±%)", min_value=0.0, max_value=100.0, value=float(analyzer.cliente_data.get('range_permitido', 0.20) * 100), help="Variação aceitável entre seu preço e o mercado (Padrão: 20%)", key=f"rp_{ver}")
         
+        st.markdown("#### 🚀 Dados de Performance (Opcional - Melhora a Precisão)")
+        col3, col4 = st.columns(2)
+        with col3:
+            cac = st.text_input("CAC Médio (R$)", value=str(analyzer.cliente_data.get('cac', 0.0)), help="Custo de Aquisição de Cliente (Ex: 25.50)", key=f"cac_{ver}")
+        with col4:
+            invest_mkt = st.text_input("Investimento Mkt Mensal (R$)", value=str(analyzer.cliente_data.get('investimento_mkt', 0.0)), help="Quanto você investe hoje (Ex: 5000)", key=f"imkt_{ver}")
+
         if st.form_submit_button("💾 Salvar Dados"):
             fat_val_parsed = parse_large_number(fat_input)
             st.session_state.analyzer.set_cliente_data(
                 empresa=empresa, categoria="Geral", ticket_medio=ticket_medio,
                 margem=margem, faturamento_3m=fat_val_parsed, 
-                unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido
+                unidades_3m=int(parse_large_number(uni_input)), range_permitido=range_permitido,
+                cac=parse_large_number(cac), investimento_mkt=parse_large_number(invest_mkt)
             )
             # Garantir persistência absoluta do faturamento para os cálculos
             st.session_state.analyzer.cliente_data['faturamento_3m'] = fat_val_parsed
@@ -602,6 +610,17 @@ elif menu == "📊 Dashboard Executivo":
             # SEÇÃO DE TENDÊNCIA E PROJEÇÃO
             st.markdown("---")
             st.markdown("### 📈 Tendência e Projeção de Demanda")
+            
+            # Cálculo de Confiabilidade
+            confianca = analyzer.calcular_confianca(row_foco['Categoria Macro'], sub_foco)
+            cor_conf = "green" if confianca['nivel'] == "Alta" else ("orange" if confianca['nivel'] == "Média" else "red")
+            
+            st.markdown(f"**Índice de Confiança da Projeção:** <span style='color:{cor_conf}; font-weight:bold;'>{confianca['score']}% ({confianca['nivel']})</span>", unsafe_allow_html=True)
+            if confianca['motivos']:
+                with st.expander("Ver detalhes da confiabilidade"):
+                    for m in confianca['motivos']:
+                        st.write(f"• {m}")
+
             tendencia_res = analyzer.calcular_tendencia(row_foco['Categoria Macro'])
             
             t_col1, t_col2, t_col3 = st.columns([1, 1, 2])

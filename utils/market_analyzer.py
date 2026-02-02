@@ -13,7 +13,10 @@ class MarketAnalyzer:
     """Classe para análise de mercado e cálculo de scores com suporte a múltiplas categorias"""
     
     def __init__(self):
-        self.cliente_data = {}
+        self.cliente_data = {
+            'cac': 0.0,
+            'investimento_mkt': 0.0
+        }
         # Estrutura: { 'Categoria Nome': [ {periodo, faturamento, unidades, ticket_medio} ] }
         self.mercado_categoria = {} 
         # Estrutura: { 'Categoria Nome': [ {subcategoria, faturamento_6m, unidades_6m, ticket_medio} ] }
@@ -21,9 +24,10 @@ class MarketAnalyzer:
         
     def set_cliente_data(self, empresa: str, categoria: str, ticket_medio: float,
                         margem: float, faturamento_3m: float, unidades_3m: int,
-                        range_permitido: float = 20.0, ticket_custom: float = None):
-        """Define dados do cliente (agora categoria é a categoria principal/inicial)"""
-        self.cliente_data = {
+                        range_permitido: float = 20.0, ticket_custom: float = None,
+                        cac: float = 0.0, investimento_mkt: float = 0.0):
+        """Define dados do cliente com novos campos de CAC e Investimento"""
+        self.cliente_data.update({
             'empresa': empresa,
             'categoria_principal': categoria,
             'ticket_medio': ticket_medio if ticket_medio else (faturamento_3m / unidades_3m if unidades_3m > 0 else 0),
@@ -31,8 +35,10 @@ class MarketAnalyzer:
             'faturamento_3m': faturamento_3m,
             'unidades_3m': unidades_3m,
             'range_permitido': range_permitido / 100 if range_permitido > 1 else range_permitido,
-            'ticket_custom': ticket_custom
-        }
+            'ticket_custom': ticket_custom,
+            'cac': cac,
+            'investimento_mkt': investimento_mkt
+        })
         
     def add_mercado_categoria(self, categoria: str, periodo: str, faturamento: float, unidades: int):
         """Adiciona dados de mercado para uma categoria específica"""
@@ -75,36 +81,65 @@ class MarketAnalyzer:
         else:
             return "ACIMA", "Reduzir ticket"
     
+    def calcular_confianca(self, categoria: str, subcategoria: str) -> Dict:
+        """Calcula o Índice de Confiança da Projeção (0 a 100%)"""
+        score = 100
+        motivos = []
+        
+        # 1. Histórico de Mercado
+        historico = self.mercado_categoria.get(categoria, [])
+        if len(historico) < 3:
+            score -= 30
+            motivos.append("Pouco histórico de mercado (menos de 3 meses)")
+        
+        # 2. Discrepância de Ticket
+        subcat_data = next((s for s in self.mercado_subcategorias.get(categoria, []) if s['subcategoria'] == subcategoria), None)
+        if subcat_data:
+            ticket_mercado = subcat_data['ticket_medio']
+            ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
+            if ticket_mercado > 0:
+                diff = abs(ticket_cliente - ticket_mercado) / ticket_mercado
+                if diff > 0.5:
+                    score -= 20
+                    motivos.append("Ticket muito fora da média do mercado (>50%)")
+        
+        # 3. Dados do Cliente
+        if self.cliente_data.get('faturamento_3m', 0) == 0:
+            score -= 40
+            motivos.append("Faturamento atual do cliente não informado")
+            
+        return {
+            "score": max(0, score),
+            "nivel": "Alta" if score >= 80 else ("Média" if score >= 50 else "Baixa"),
+            "motivos": motivos
+        }
+
     def calcular_score(self, categoria: str, faturamento_6m: float, ticket_mercado: float) -> float:
-        """Calcula score de priorização baseado em 3 pilares: Mercado, Preço e Lucratividade"""
+        """Calcula score de priorização baseado na Matriz GUT adaptada"""
         if categoria not in self.mercado_subcategorias or not self.mercado_subcategorias[categoria]:
             return 0.0
             
-        # 1. Pilar Mercado (Peso 50%): Tamanho relativo da oportunidade
+        # G - Gravidade (Tamanho do Mercado - 40%)
         max_faturamento = max([s['faturamento_6m'] for s in self.mercado_subcategorias[categoria]])
-        score_mercado = faturamento_6m / max_faturamento if max_faturamento > 0 else 0
+        g = faturamento_6m / max_faturamento if max_faturamento > 0 else 0
         
-        # 2. Pilar Preço (Peso 30%): Eficiência e Competitividade
+        # U - Urgência (Fit de Ticket/Competitividade - 40%)
         ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         range_pct = self.cliente_data.get('range_permitido', 0.20)
         diff_pct = abs(ticket_cliente - ticket_mercado) / ticket_mercado if ticket_mercado > 0 else 1
         
-        # Score de preço é maior quanto mais próximo do ticket médio, 
-        # mas penaliza menos se estiver abaixo (oportunidade de volume)
         if diff_pct <= range_pct:
-            score_preco = 1.0
+            u = 1.0
         elif ticket_cliente < ticket_mercado:
-            score_preco = 0.6 # Abaixo do range: ainda competitivo por volume
+            u = 0.7 # Competitivo por volume
         else:
-            score_preco = 0.2 # Acima do range: barreira de entrada maior
+            u = 0.3 # Barreira de preço
             
-        # 3. Pilar Lucratividade (Peso 20%): Margem do cliente
+        # T - Tendência (Margem e Potencial de Lucro - 20%)
         margem = self.cliente_data.get('margem', 0)
-        score_lucro = margem # Assume que margem já está entre 0 e 1
+        t = margem
         
-        # Score final ponderado
-        score_final = (score_mercado * 0.5) + (score_preco * 0.3) + (score_lucro * 0.2)
-        
+        score_final = (g * 0.4) + (u * 0.4) + (t * 0.2)
         return min(1.0, score_final)
     
     def calcular_status(self, score: float, fit_ticket: str) -> str:
