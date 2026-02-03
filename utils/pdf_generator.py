@@ -1,5 +1,6 @@
 from fpdf import FPDF
 from datetime import datetime
+import pandas as pd
 
 class PDFReportGenerator(FPDF):
     def __init__(self, analyzer, cliente_data, sub_foco, row_foco):
