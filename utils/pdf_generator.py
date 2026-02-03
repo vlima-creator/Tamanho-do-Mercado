@@ -92,8 +92,14 @@ class PDFReportGenerator(FPDF):
         categoria = self.row_foco.get("Categoria Macro", "")
         subcategoria = self.sub_foco if self.sub_foco else ""
         
-        scenarios = self.analyzer.calcular_cenarios(categoria, subcategoria)
+        # O método correto no MarketAnalyzer é simular_cenarios
+        res_simulacao = self.analyzer.simular_cenarios(categoria, subcategoria)
+        scenarios_df = res_simulacao.get('cenarios', pd.DataFrame())
         
+        if scenarios_df.empty:
+            self.chapter_body("Nao foi possivel calcular cenarios para esta subcategoria.")
+            return
+
         self.set_font("Helvetica", "B", 11)
         self.cell(40, 10, "Cenario", 1)
         self.cell(50, 10, "Receita Projetada", 1)
@@ -102,8 +108,8 @@ class PDFReportGenerator(FPDF):
         self.ln()
 
         self.set_font("Helvetica", "", 10)
-        for scenario in scenarios:
-            self.cell(40, 8, scenario["Cenário"], 1)
+        for _, scenario in scenarios_df.iterrows():
+            self.cell(40, 8, str(scenario["Cenário"]), 1)
             self.cell(50, 8, f"R$ {self.format_br(scenario['Receita Projetada 6M'])}", 1)
             self.cell(50, 8, f"R$ {self.format_br(scenario['Lucro Projetado 6M'])}", 1)
             self.cell(40, 8, f"{scenario['Crescimento (%)']:.1f}%", 1)
@@ -138,19 +144,25 @@ class PDFReportGenerator(FPDF):
         categoria = self.row_foco.get("Categoria Macro", "")
         subcategoria = self.sub_foco if self.sub_foco else ""
         
-        plano_acao = self.analyzer.gerar_plano_acao(categoria, subcategoria)
+        lista_plano = self.analyzer.gerar_plano_acao(categoria)
+        # Filtrar para a subcategoria de foco
+        plano_foco = next((p for p in lista_plano if p['Subcategoria'] == subcategoria), None)
         
+        if not plano_foco:
+            self.chapter_body("Nao ha recomendacoes especificas para esta subcategoria no momento.")
+            return
+
         self.set_font("Helvetica", "B", 12)
-        self.cell(0, 8, f"Prioridade: {plano_acao['prioridade']} (Score: {plano_acao['score']:.2f})", 0, 1)
-        self.set_font("Helvetica", "", 10)
-        self.multi_cell(0, 8, plano_acao["ajuste_estrategico"])
+        self.cell(0, 8, f"Prioridade: {plano_foco['Prioridade']} (Score: {plano_foco['Score']:.2f})", 0, 1)
         self.ln(2)
 
         self.set_font("Helvetica", "B", 12)
         self.cell(0, 8, "Acoes Detalhadas:", 0, 1)
         self.set_font("Helvetica", "", 10)
-        for acao in plano_acao.get("acoes", []):
-            self.multi_cell(0, 6, f"* {acao}")
+        for acao in plano_foco.get("Ações", []):
+            # Remover markdown bold para o PDF
+            acao_limpa = acao.replace("**", "")
+            self.multi_cell(0, 6, f"* {acao_limpa}")
         self.ln(5)
 
     def format_br(self, value):
