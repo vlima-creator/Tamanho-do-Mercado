@@ -140,6 +140,19 @@ class PDFReportGenerator(FPDF):
             self.cell(0, 6, f"- {meses[i]}: R$ {self.format_br(val)} ({crescimento_percentual:+.1f}%)", 0, 1)
         self.ln(5)
 
+    def clean_text(self, text):
+        """Remove caracteres não-latinos e emojis que causam erro no PDF padrão"""
+        if not text: return ""
+        # Substituir caracteres comuns que causam erro
+        replacements = {
+            '✅': '[OK]', '🚀': '>', '⚠️': '!', '💡': 'i', '💰': '$', '🎯': '>', '•': '*', '·': '*'
+        }
+        for char, rep in replacements.items():
+            text = text.replace(char, rep)
+        
+        # Remover qualquer outro caractere que não seja Latin-1
+        return text.encode('latin-1', 'ignore').decode('latin-1')
+
     def add_action_plan(self):
         self.chapter_title("5. Plano de Acao Sugerido")
         categoria = self.row_foco.get("Categoria Macro", "")
@@ -154,15 +167,17 @@ class PDFReportGenerator(FPDF):
             return
 
         self.set_font("Helvetica", "B", 12)
-        self.cell(0, 8, f"Prioridade: {plano_foco['Prioridade']} (Score: {plano_foco['Score']:.2f})", 0, 1)
+        prioridade = self.clean_text(plano_foco['Prioridade'])
+        self.cell(0, 8, f"Prioridade: {prioridade} (Score: {plano_foco['Score']:.2f})", 0, 1)
         self.ln(2)
 
         self.set_font("Helvetica", "B", 12)
         self.cell(0, 8, "Acoes Detalhadas:", 0, 1)
         self.set_font("Helvetica", "", 10)
         for acao in plano_foco.get("Ações", []):
-            # Remover markdown bold para o PDF
+            # Remover markdown bold e limpar caracteres especiais
             acao_limpa = acao.replace("**", "")
+            acao_limpa = self.clean_text(acao_limpa)
             self.multi_cell(0, 6, f"* {acao_limpa}")
         self.ln(5)
 
