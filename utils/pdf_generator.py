@@ -56,7 +56,7 @@ class PDFReportGenerator(FPDF):
         self.chapter_body("Analise das melhores categorias para investimento baseada no potencial de mercado e competitividade de preco.")
         
         # Listar top categorias
-        if self.analyzer.mercado_categoria:
+        if hasattr(self.analyzer, 'mercado_categoria') and self.analyzer.mercado_categoria:
             self.set_font("Helvetica", "B", 11)
             self.cell(80, 10, "Categoria", 1)
             self.cell(50, 10, "Faturamento 6M", 1)
@@ -64,12 +64,26 @@ class PDFReportGenerator(FPDF):
             self.ln()
             
             self.set_font("Helvetica", "", 10)
-            # Pegar as top 5 categorias por faturamento
-            sorted_cats = sorted(self.analyzer.mercado_categoria.items(), key=lambda x: x[1].get('faturamento', 0), reverse=True)[:5]
-            for cat, data in sorted_cats:
-                self.cell(80, 8, cat[:40], 1)
-                self.cell(50, 8, f"R$ {self.format_br(data.get('faturamento', 0))}", 1)
-                self.cell(40, 8, "Alta" if data.get('faturamento', 0) > 1000000 else "Media", 1)
+            
+            # Lógica segura para extrair dados de categoria (pode ser dict ou list de dicts)
+            cats_data = []
+            if isinstance(self.analyzer.mercado_categoria, dict):
+                for cat, data in self.analyzer.mercado_categoria.items():
+                    faturamento = data.get('faturamento', 0) if isinstance(data, dict) else 0
+                    cats_data.append({'nome': cat, 'faturamento': faturamento})
+            elif isinstance(self.analyzer.mercado_categoria, list):
+                for item in self.analyzer.mercado_categoria:
+                    if isinstance(item, dict):
+                        nome = item.get('categoria', 'N/A')
+                        faturamento = item.get('faturamento', 0)
+                        cats_data.append({'nome': nome, 'faturamento': faturamento})
+
+            # Ordenar e exibir top 5
+            sorted_cats = sorted(cats_data, key=lambda x: x['faturamento'], reverse=True)[:5]
+            for item in sorted_cats:
+                self.cell(80, 8, str(item['nome'])[:40], 1)
+                self.cell(50, 8, f"R$ {self.format_br(item['faturamento'])}", 1)
+                self.cell(40, 8, "Alta" if item['faturamento'] > 1000000 else "Media", 1)
                 self.ln()
         self.ln(5)
 
