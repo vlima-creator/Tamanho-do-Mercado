@@ -14,9 +14,8 @@ import os
 import json
 import re
 import io
-
-# Adicionar pasta utils ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+from utils.pdf_generator import PDFReportGenerator
 
 from utils.market_analyzer import MarketAnalyzer
 from utils.visualizations import (
@@ -243,6 +242,92 @@ with st.sidebar:
     if 'last_upload_info' in st.session_state:
         st.info(st.session_state.last_upload_info)
     
+    st.markdown("---")
+    st.markdown("---")
+    st.markdown("### 📄 Gerar Relatório Executivo")
+
+    # Usar st.session_state.analyzer para evitar NameError
+    current_analyzer = st.session_state.analyzer
+
+    if st.button("Gerar Relatório PDF", use_container_width=True, key="pdf_button"):
+        if current_analyzer.cliente_data and (current_analyzer.mercado_categoria or current_analyzer.mercado_subcategoria):
+            with st.spinner("Gerando seu relatório... Por favor, aguarde."):
+                # Lógica para selecionar a categoria e subcategoria de foco para o relatório
+                # Idealmente, isso viria da seleção do usuário no dashboard
+                if st.session_state.get("selected_macro_cat") and st.session_state.get("selected_sub_cat_foco"):
+                    cat_foco = st.session_state.selected_macro_cat
+                    sub_foco = st.session_state.selected_sub_cat_foco
+                    df_foco = current_analyzer.get_mercado_categoria_df(cat_foco)
+                    row_foco = df_foco[df_foco["Subcategoria"] == sub_foco].iloc[0].to_dict() if not df_foco.empty else {}
+                else:
+                    # Fallback: usar a primeira categoria/subcategoria disponível
+                    cat_foco = list(current_analyzer.mercado_categoria.keys())[0] if current_analyzer.mercado_categoria else ""
+                    sub_foco = list(current_analyzer.mercado_subcategoria.keys())[0] if current_analyzer.mercado_subcategoria else ""
+                    row_foco = {"Categoria Macro": cat_foco, "Subcategoria": sub_foco} # Simulação
+
+                pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, sub_foco, row_foco)
+                pdf_file_path = "relatorio_executivo.pdf"
+                pdf.generate_report(pdf_file_path)
+
+                with open(pdf_file_path, "rb") as f:
+                    st.session_state.pdf_report = f.read()
+                st.session_state.pdf_ready = True
+                st.success("Relatório pronto para download!")
+        else:
+            st.warning("Por favor, importe os dados e selecione uma categoria no dashboard antes de gerar o relatório.")
+
+    if st.session_state.get("pdf_ready"):
+        st.download_button(
+            label="📥 Download Relatório PDF",
+            data=st.session_state.pdf_report,
+            file_name="relatorio_executivo.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+    st.markdown("---")
+    st.markdown("---")
+    st.markdown("### 📄 Gerar Relatório Executivo")
+
+    # Usar st.session_state.analyzer para evitar NameError
+    current_analyzer = st.session_state.analyzer
+
+    if st.button("Gerar Relatório PDF", use_container_width=True, key="pdf_button"):
+        if current_analyzer.cliente_data and (current_analyzer.mercado_categoria or current_analyzer.mercado_subcategoria):
+            with st.spinner("Gerando seu relatório... Por favor, aguarde."):
+                # Lógica para selecionar a categoria e subcategoria de foco para o relatório
+                # Idealmente, isso viria da seleção do usuário no dashboard
+                if st.session_state.get("selected_macro_cat") and st.session_state.get("selected_sub_cat_foco"):
+                    cat_foco = st.session_state.selected_macro_cat
+                    sub_foco = st.session_state.selected_sub_cat_foco
+                    df_foco = current_analyzer.get_mercado_categoria_df(cat_foco)
+                    row_foco = df_foco[df_foco["Subcategoria"] == sub_foco].iloc[0].to_dict() if not df_foco.empty else {}
+                else:
+                    # Fallback: usar a primeira categoria/subcategoria disponível
+                    cat_foco = list(current_analyzer.mercado_categoria.keys())[0] if current_analyzer.mercado_categoria else ""
+                    sub_foco = list(current_analyzer.mercado_subcategoria.keys())[0] if current_analyzer.mercado_subcategoria else ""
+                    row_foco = {"Categoria Macro": cat_foco, "Subcategoria": sub_foco} # Simulação
+
+                pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, sub_foco, row_foco)
+                pdf_file_path = "relatorio_executivo.pdf"
+                pdf.generate_report(pdf_file_path)
+
+                with open(pdf_file_path, "rb") as f:
+                    st.session_state.pdf_report = f.read()
+                st.session_state.pdf_ready = True
+                st.success("Relatório pronto para download!")
+        else:
+            st.warning("Por favor, importe os dados e selecione uma categoria no dashboard antes de gerar o relatório.")
+
+    if st.session_state.get("pdf_ready"):
+        st.download_button(
+            label="📥 Download Relatório PDF",
+            data=st.session_state.pdf_report,
+            file_name="relatorio_executivo.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
     st.markdown("---")
     st.markdown("### 📥 Exportar Dados")
     
