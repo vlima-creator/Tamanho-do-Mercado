@@ -252,17 +252,28 @@ with st.sidebar:
         if current_analyzer.cliente_data and (current_analyzer.mercado_categoria or current_analyzer.mercado_subcategoria):
             with st.spinner("Gerando seu relatório... Por favor, aguarde."):
                 # Lógica para selecionar a categoria e subcategoria de foco para o relatório
-                # Idealmente, isso viria da seleção do usuário no dashboard
-                if st.session_state.get("selected_macro_cat") and st.session_state.get("selected_sub_cat_foco"):
-                    cat_foco = st.session_state.selected_macro_cat
-                    sub_foco = st.session_state.selected_sub_cat_foco
+                cat_foco = st.session_state.get("selected_macro_cat", "")
+                sub_foco = st.session_state.get("selected_sub_cat_foco", "")
+                
+                if cat_foco and sub_foco:
                     df_foco = current_analyzer.get_mercado_categoria_df(cat_foco)
-                    row_foco = df_foco[df_foco["Subcategoria"] == sub_foco].iloc[0].to_dict() if not df_foco.empty else {}
+                    if not df_foco.empty and sub_foco in df_foco["Subcategoria"].values:
+                        row_foco = df_foco[df_foco["Subcategoria"] == sub_foco].iloc[0].to_dict()
+                    else:
+                        row_foco = {"Categoria Macro": cat_foco, "Subcategoria": sub_foco}
                 else:
-                    # Fallback: usar a primeira categoria/subcategoria disponível
-                    cat_foco = list(current_analyzer.mercado_categoria.keys())[0] if current_analyzer.mercado_categoria else ""
-                    sub_foco = list(current_analyzer.mercado_subcategoria.keys())[0] if current_analyzer.mercado_subcategoria else ""
-                    row_foco = {"Categoria Macro": cat_foco, "Subcategoria": sub_foco} # Simulação
+                    # Fallback: usar a primeira categoria/subcategoria disponível de forma segura
+                    cat_foco = ""
+                    sub_foco = ""
+                    row_foco = {}
+                    
+                    if current_analyzer.mercado_subcategorias:
+                        cat_foco = list(current_analyzer.mercado_subcategorias.keys())[0]
+                        if current_analyzer.mercado_subcategorias[cat_foco]:
+                            sub_foco = current_analyzer.mercado_subcategorias[cat_foco][0]['subcategoria']
+                            df_foco = current_analyzer.get_mercado_categoria_df(cat_foco)
+                            if not df_foco.empty:
+                                row_foco = df_foco.iloc[0].to_dict()
 
                 pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, sub_foco, row_foco)
                 pdf_file_path = "relatorio_executivo.pdf"
