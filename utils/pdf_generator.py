@@ -143,15 +143,19 @@ class PDFReportGenerator(FPDF):
     def clean_text(self, text):
         """Remove caracteres não-latinos e emojis que causam erro no PDF padrão"""
         if not text: return ""
-        # Substituir caracteres comuns que causam erro
+        # Substituir caracteres comuns que causam erro e acentos problemáticos
         replacements = {
-            '✅': '[OK]', '🚀': '>', '⚠️': '!', '💡': 'i', '💰': '$', '🎯': '>', '•': '*', '·': '*'
+            '✅': '[OK]', '🚀': '>', '⚠️': '!', '💡': 'i', '💰': '$', '🎯': '>', '•': '*', '·': '*',
+            '—': '-', '–': '-', '“': '"', '”': '"', '‘': "'", '’': "'"
         }
         for char, rep in replacements.items():
             text = text.replace(char, rep)
         
-        # Remover qualquer outro caractere que não seja Latin-1
-        return text.encode('latin-1', 'ignore').decode('latin-1')
+        # Normalizar para evitar problemas de codificação mantendo acentos básicos
+        try:
+            return text.encode('latin-1', 'replace').decode('latin-1').replace('?', ' ')
+        except:
+            return "".join([c if ord(c) < 256 else ' ' for c in text])
 
     def add_action_plan(self):
         self.chapter_title("5. Plano de Acao Sugerido")
@@ -178,7 +182,8 @@ class PDFReportGenerator(FPDF):
             # Remover markdown bold e limpar caracteres especiais
             acao_limpa = acao.replace("**", "")
             acao_limpa = self.clean_text(acao_limpa)
-            self.multi_cell(0, 6, f"* {acao_limpa}")
+            # Usar largura fixa para evitar erro de espaço horizontal
+            self.multi_cell(180, 6, f"* {acao_limpa}", border=0, align='L')
         self.ln(5)
 
     def format_br(self, value):
