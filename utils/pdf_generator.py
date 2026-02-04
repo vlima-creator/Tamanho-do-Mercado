@@ -27,19 +27,17 @@ class PDFReportGenerator(FPDF):
     def chapter_title(self, title):
         self.set_font("Helvetica", "B", 14)
         self.set_fill_color(230, 230, 230)
-        self.cell(0, 10, title, 0, 1, "L", 1)
+        self.cell(0, 10, self.clean_text(title), 0, 1, "L", 1)
         self.ln(5)
 
     def chapter_body(self, body):
         self.set_font("Helvetica", "", 12)
-        self.multi_cell(0, 8, body)
+        self.multi_cell(0, 8, self.clean_text(body))
         self.ln()
 
     def add_summary(self):
         self.chapter_title("1. Sumario Executivo")
         empresa = self.cliente_data.get("empresa", "[Nome da Empresa]")
-        # Usar self.cat_foco e self.sub_foco que são passados no construtor
-              # Usar self.cat_foco e self.sub_foco que são passados no construtor
         categoria_display = self.cat_foco if self.cat_foco else "N/A"
         subcategoria_display = self.sub_foco if self.sub_foco else "N/A"
         
@@ -51,19 +49,19 @@ class PDFReportGenerator(FPDF):
         tendencia_res = self.analyzer.calcular_tendencia(self.cat_foco)
         crescimento_mensal = tendencia_res.get("crescimento_mensal", 0.0)
 
-        summary_text = f"Este relatório apresenta uma análise de inteligência de mercado para a empresa **{empresa}**, focando na categoria **{categoria_display}** e subcategoria **{subcategoria_display}**.\n"
-        summary_text += f"Seu ticket médio atual é de **R$ {self.format_br(ticket_medio_cliente)}** e sua margem atual é de **{margem_cliente:.1f}%**.\n"
-        summary_text += f"Com base na análise de mercado, a categoria apresenta uma tendência de crescimento de **{crescimento_mensal:+.1f}% ao mês**.\n\n"
+        summary_text = f"Este relatorio apresenta uma analise de inteligencia de mercado para a empresa {empresa}, focando na categoria {categoria_display} e subcategoria {subcategoria_display}.\n"
+        summary_text += f"Seu ticket medio atual e de R$ {self.format_br(ticket_medio_cliente)} e sua margem atual e de {margem_cliente:.1f}%.\n"
+        summary_text += f"Com base na analise de mercado, a categoria apresenta uma tendencia de crescimento de {crescimento_mensal:+.1f}% ao mes.\n\n"
         self.chapter_body(summary_text)
         
         # Índice de Confiança
         confianca = self.analyzer.calcular_confianca(self.cat_foco, self.sub_foco)
         self.set_font("Helvetica", "B", 12)
-        self.cell(0, 8, f"Indice de Confianca da Projecao: {confianca['score']}% ({confianca['nivel']})", 0, 1)
+        self.cell(0, 8, self.clean_text(f"Indice de Confianca da Projecao: {confianca['score']}% ({confianca['nivel']})"), 0, 1)
         self.set_font("Helvetica", "", 10)
         if confianca["motivos"]:
             for motivo in confianca["motivos"]:
-                self.cell(0, 6, f"- {motivo}", 0, 1)
+                self.cell(0, 6, self.clean_text(f"- {motivo}"), 0, 1)
         self.ln(5)
 
     def add_market_opportunities(self):
@@ -91,7 +89,7 @@ class PDFReportGenerator(FPDF):
         else:
             # Destacar a melhor oportunidade
             melhor_oportunidade = df_foco_ok.iloc[0]
-            self.chapter_body(f"A **melhor oportunidade** no momento é a subcategoria **{melhor_oportunidade["Subcategoria"]}** na categoria **{melhor_oportunidade["Categoria Macro"]}**, com Score de **{melhor_oportunidade["Score"]:.2f}** e status **{melhor_oportunidade["Status"]}**.\n")
+            self.chapter_body(f"A melhor oportunidade no momento e a subcategoria {melhor_oportunidade['Subcategoria']} na categoria {melhor_oportunidade['Categoria Macro']}, com Score de {melhor_oportunidade['Score']:.2f} e status {melhor_oportunidade['Status']}.\n")
 
             self.set_font("Helvetica", "B", 11)
             self.cell(60, 10, "Subcategoria", 1)
@@ -102,10 +100,10 @@ class PDFReportGenerator(FPDF):
             
             self.set_font("Helvetica", "", 10)
             for _, row in df_foco_ok.head(5).iterrows(): # Exibir top 5 oportunidades
-                self.cell(60, 8, str(row["Subcategoria"])[:30], 1)
-                self.cell(40, 8, f"R$ {self.format_br(row["Mercado (R$)"])}", 1)
-                self.cell(30, 8, f"{row["Score"]:.2f}", 1)
-                self.cell(40, 8, row["Status"], 1)
+                self.cell(60, 8, self.clean_text(str(row["Subcategoria"])[:30]), 1)
+                self.cell(40, 8, f"R$ {self.format_br(row['Mercado (R$)'])}", 1)
+                self.cell(30, 8, f"{row['Score']:.2f}", 1)
+                self.cell(40, 8, row['Status'], 1)
                 self.ln()
         self.ln(5)
 
@@ -127,33 +125,26 @@ class PDFReportGenerator(FPDF):
             
             self.set_font("Helvetica", "", 10)
             for _, row in df_evitar.head(5).iterrows(): # Exibir top 5 a evitar
-                self.cell(60, 8, str(row["Subcategoria"])[:30], 1)
-                self.cell(40, 8, f"R$ {self.format_br(row["Mercado (R$)"])}", 1)
-                self.cell(30, 8, f"{row["Score"]:.2f}", 1)
-                self.cell(40, 8, row["Status"], 1)
+                self.cell(60, 8, self.clean_text(str(row["Subcategoria"])[:30]), 1)
+                self.cell(40, 8, f"R$ {self.format_br(row['Mercado (R$)'])}", 1)
+                self.cell(30, 8, f"{row['Score']:.2f}", 1)
+                self.cell(40, 8, row['Status'], 1)
                 self.ln()
         self.ln(5)
 
     def add_growth_scenarios(self):
         self.chapter_title("3. Cenarios de Crescimento")
-        # Usar self.cat_foco e self.sub_foco que são passados no construtor
         res_simulacao = self.analyzer.simular_cenarios(self.cat_foco, self.sub_foco)
         scenarios_df = res_simulacao.get("cenarios", pd.DataFrame())
 
-        # Garantir que o dataframe de cenários não está vazio e contém os dados esperados
         if scenarios_df.empty or not all(col in scenarios_df.columns for col in ['Cenário', 'Receita Projetada 6M', 'Lucro Projetado 6M', 'Crescimento (%)']):
             self.chapter_body("Nao foi possivel calcular cenarios para esta subcategoria ou os dados estao incompletos.")
             return
 
-        # Adicionar informações de ticket e margem para contexto
         ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         margem_cliente = self.cliente_data.get('margem', 0) * 100
-        self.chapter_body(f"Análise de cenários para a subcategoria **{self.sub_foco}** (Categoria: **{self.cat_foco}**). Seu ticket médio: R$ {self.format_br(ticket_cliente)}, Margem: {margem_cliente:.1f}%.")
+        self.chapter_body(f"Analise de cenarios para a subcategoria {self.sub_foco} (Categoria: {self.cat_foco}). Seu ticket medio: R$ {self.format_br(ticket_cliente)}, Margem: {margem_cliente:.1f}%.")
         self.ln(2)
-        
-        if scenarios_df.empty:
-            self.chapter_body("Nao foi possivel calcular cenarios para esta subcategoria.")
-            return
 
         self.set_font("Helvetica", "B", 11)
         self.cell(40, 10, "Cenario", 1)
@@ -164,50 +155,45 @@ class PDFReportGenerator(FPDF):
 
         self.set_font("Helvetica", "", 10)
         for _, scenario in scenarios_df.iterrows():
-            self.cell(40, 8, str(scenario["Cenário"]), 1)
+            self.cell(40, 8, self.clean_text(str(scenario["Cenário"])), 1)
             self.cell(50, 8, f"R$ {self.format_br(scenario['Receita Projetada 6M'])}", 1)
             self.cell(50, 8, f"R$ {self.format_br(scenario['Lucro Projetado 6M'])}", 1)
-            # Garantir que o crescimento percentual é formatado corretamente
             crescimento_pct = scenario["Crescimento (%)"]
             if pd.isna(crescimento_pct): crescimento_pct = 0.0
             self.cell(40, 8, f"{crescimento_pct:.1f}%", 1)
             self.ln()
         self.ln(5)
 
-        # Insights do Consultor para Cenários de Crescimento
+        # Insights do Consultor
         self.set_font("Helvetica", "B", 12)
         self.cell(0, 8, "Insights do Consultor:", 0, 1)
         self.set_font("Helvetica", "", 10)
 
         insight_text = ""
-        # Obter dados do cenário provável para insights
         cenario_provavel = scenarios_df[scenarios_df["Cenário"] == "Provável"].iloc[0]
         crescimento_provavel = cenario_provavel["Crescimento (%)"]
-        delta_provavel = cenario_provavel["Delta vs Atual"]
-
-        ticket_cliente = self.cliente_data.get("ticket_custom") or self.cliente_data.get("ticket_medio", 0)
         ticket_mercado = res_simulacao.get("ticket_mercado", 0)
-        margem_cliente = self.cliente_data.get("margem", 0)
+        margem_cliente_val = self.cliente_data.get("margem", 0)
 
         if crescimento_provavel > 10:
-            insight_text += "• O cenário provável indica um crescimento robusto. Considere investir em marketing e otimização de funil para capturar essa demanda.\n"
+            insight_text += "- O cenario provavel indica um crescimento robusto. Considere investir em marketing e otimizacao de funil para capturar essa demanda.\n"
         elif crescimento_provavel < 0:
-            insight_text += "• O cenário provável aponta para uma retração. É crucial revisar a estratégia de precificação, custos ou buscar diferenciação para reverter a tendência.\n"
+            insight_text += "- O cenario provavel aponta para uma retracao. E crucial revisar a estrategia de precificacao, custos ou buscar diferenciacao para reverter a tendencia.\n"
         else:
-            insight_text += "• O crescimento é moderado. Foco em otimização de conversão e fidelização de clientes para maximizar o lucro.\n"
+            insight_text += "- O crescimento e moderado. Foco em otimizacao de conversao e fidelizacao de clientes para maximizar o lucro.\n"
 
         if ticket_cliente < ticket_mercado * (1 - self.cliente_data.get("range_permitido", 0.20)):
-            insight_text += f"• Seu ticket médio (R$ {self.format_br(ticket_cliente)}) está abaixo do mercado (R$ {self.format_br(ticket_mercado)}). Há espaço para aumentar o preço ou criar ofertas de maior valor agregado.\n"
+            insight_text += f"- Seu ticket medio (R$ {self.format_br(ticket_cliente)}) esta abaixo do mercado (R$ {self.format_br(ticket_mercado)}). Ha espaco para aumentar o preco ou criar ofertas de maior valor agregado.\n"
         elif ticket_cliente > ticket_mercado * (1 + self.cliente_data.get("range_permitido", 0.20)):
-            insight_text += f"• Seu ticket médio (R$ {self.format_br(ticket_cliente)}) está acima do mercado (R$ {self.format_br(ticket_mercado)}). Avalie a percepção de valor do seu produto e a competitividade.\n"
+            insight_text += f"- Seu ticket medio (R$ {self.format_br(ticket_cliente)}) esta acima do mercado (R$ {self.format_br(ticket_mercado)}). Avalie a percepcao de valor do seu produto e a competitividade.\n"
 
-        if margem_cliente < 0.10: # Exemplo: margem abaixo de 10%
-            insight_text += "• Sua margem atual é baixa. Explore a negociação com fornecedores ou a otimização de custos operacionais para melhorar a lucratividade.\n"
+        if margem_cliente_val < 0.10:
+            insight_text += "- Sua margem atual e baixa. Explore a negociacao com fornecedores ou a otimizacao de custos operacionais para melhorar a lucratividade.\n"
 
         if not insight_text:
-            insight_text = "Nenhum insight específico gerado para os cenários atuais. Continue monitorando o mercado e ajustando suas estratégias."
+            insight_text = "Nenhum insight especifico gerado para os cenarios atuais. Continue monitorando o mercado e ajustando suas estrategias."
         
-        self.multi_cell(0, 6, insight_text)
+        self.multi_cell(0, 6, self.clean_text(insight_text))
         self.ln(5)
 
     def add_demand_projection(self):
@@ -215,7 +201,7 @@ class PDFReportGenerator(FPDF):
         tendencia_res = self.analyzer.calcular_tendencia(self.cat_foco)
         
         self.set_font("Helvetica", "B", 12)
-        self.cell(0, 8, f"Tendencia Atual: {tendencia_res['tendencia']} ({tendencia_res['crescimento_mensal']:.1f}% mensal)", 0, 1)
+        self.cell(0, 8, self.clean_text(f"Tendencia Atual: {tendencia_res['tendencia']} ({tendencia_res['crescimento_mensal']:.1f}% mensal)"), 0, 1)
         self.cell(0, 8, f"Projecao Total (3 Meses): R$ {self.format_br(tendencia_res['projecao_3m'])}", 0, 1)
         self.ln(2)
 
@@ -224,17 +210,12 @@ class PDFReportGenerator(FPDF):
         self.set_font("Helvetica", "", 10)
         meses = ["Mes 1", "Mes 2", "Mes 3"]
         valores = tendencia_res.get("mensal", [0, 0, 0])
-        
-        # O faturamento base para o cálculo do crescimento mensal deve ser o faturamento médio mensal do cliente
         faturamento_mensal_cliente_base = self.cliente_data.get("faturamento_3m", 0.0) / 3
 
         for i, val in enumerate(valores):
-            # O crescimento percentual deve ser em relação ao mês anterior projetado, ou ao faturamento base para o primeiro mês
             if i == 0:
-                # Primeiro mês, comparar com o faturamento mensal base do cliente
                 crescimento_percentual = ((val - faturamento_mensal_cliente_base) / faturamento_mensal_cliente_base * 100) if faturamento_mensal_cliente_base > 0 else 0
             else:
-                # Meses subsequentes, comparar com o valor projetado do mês anterior
                 crescimento_percentual = ((val - valores[i-1]) / valores[i-1] * 100) if valores[i-1] > 0 else 0
             self.cell(0, 6, f"- {meses[i]}: R$ {self.format_br(val)} ({crescimento_percentual:+.1f}%)", 0, 1)
         self.ln(5)
@@ -245,7 +226,8 @@ class PDFReportGenerator(FPDF):
         # Substituir caracteres comuns que causam erro e acentos problemáticos
         replacements = {
             '✅': '[OK]', '🚀': '>', '⚠️': '!', '💡': 'i', '💰': '$', '🎯': '>', '•': '*', '·': '*',
-            '—': '-', '–': '-', '“': '"', '”': '"', '‘': "'", '’': "'"
+            '—': '-', '–': '-', '“': '"', '”': '"', '‘': "'", '’': "'", '📈': '[UP]', '📉': '[DOWN]',
+            '📦': '[BOX]', '🛒': '[CART]', '🛠️': '[TOOL]', '🎯': '[TARGET]', '🚀': '[GO]'
         }
         for char, rep in replacements.items():
             text = text.replace(char, rep)
@@ -258,9 +240,7 @@ class PDFReportGenerator(FPDF):
 
     def add_action_plan(self):
         self.chapter_title("5. Plano de Acao Sugerido")
-        # Usar self.cat_foco e self.sub_foco que são passados no construtor
         lista_plano = self.analyzer.gerar_plano_acao(self.cat_foco)
-        # Filtrar para a subcategoria de foco
         plano_foco = next((p for p in lista_plano if p["Subcategoria"] == self.sub_foco), None)
         
         if not plano_foco:
@@ -276,15 +256,14 @@ class PDFReportGenerator(FPDF):
         self.cell(0, 8, "Acoes Detalhadas:", 0, 1)
         self.set_font("Helvetica", "", 10)
         for acao in plano_foco.get("Ações", []):
-            # Remover markdown bold e limpar caracteres especiais
             acao_limpa = acao.replace("**", "")
             acao_limpa = self.clean_text(acao_limpa)
-            # Usar largura fixa para evitar erro de espaço horizontal            self.multi_cell(170, 6, f"* {acao_limpa}", border=0, align=\'L\') # Reduzindo a largura para evitar cortes
+            self.multi_cell(170, 6, f"* {acao_limpa}", border=0, align='L')
         self.ln(5)
 
     def format_br(self, value):
         if value >= 1_000_000:
-            return f"{value / 1_000_000:.1f}M".replace(".", ",")
+            return f"{value / 1_000_000:,.1f}M".replace(".", "X").replace(",", ".").replace("X", ",")
         elif value >= 1_000:
             return f"{value / 1_000:,.1f}K".replace(".", "X").replace(",", ".").replace("X", ",")
         else:
