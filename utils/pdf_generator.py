@@ -286,43 +286,70 @@ class PDFReportGenerator(FPDF):
         self.cell(0, 10, f"TOTAL PROJETADO: R$ {self.format_br(tendencia_res['projecao_3m'])}", 0, 1, "R")
         self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
 
-    def add_action_plan(self):
-        self.section_title("5. Plano de Ação Estratégico")
+    def add_anomalies_and_recommendations(self):
+        self.section_title("5. Diagnóstico de Anomalias e Ação Imediata")
+        
+        # 5.1. Anomalias Detectadas
+        anomalias = self.analyzer.identificar_anomalias(self.cat_foco)
+        if anomalias:
+            self.set_font("Helvetica", "B", 11)
+            self.set_text_color(220, 38, 38) # Vermelho para anomalias
+            self.cell(0, 8, "ALERTA: Anomalias Críticas Identificadas", 0, 1, "L")
+            self.ln(2)
+            
+            for anom in anomalias:
+                self.set_fill_color(254, 242, 242)
+                self.set_font("Helvetica", "B", 9)
+                self.set_text_color(31, 41, 55)
+                msg = f"[{anom['tipo']}] {anom['subcategoria']}: {anom['mensagem']}"
+                self.multi_cell(0, 7, self.clean_text(msg), 0, "L", True)
+                self.ln(2)
+        else:
+            self.set_font("Helvetica", "I", 10)
+            self.set_text_color(5, 150, 105)
+            self.cell(0, 8, "Nenhuma anomalia crítica detectada no portfólio atual.", 0, 1, "L")
+        
+        self.ln(5)
+        
+        # 5.2. Matriz de Recomendação Automática
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+        self.cell(0, 8, "5.2. Matriz de Recomendação Automática (Ação Imediata)", 0, 1, "L")
+        self.ln(2)
+        
         lista_plano = self.analyzer.gerar_plano_acao(self.cat_foco)
         plano_foco = next((p for p in lista_plano if p["Subcategoria"] == self.sub_foco), None)
         
-        if not plano_foco:
-            self.chapter_body("Recomendações em fase de processamento.")
-            return
-
-        # Prioridade em destaque - Usando a prioridade para definir a cor
-        prioridade = plano_foco.get('Prioridade', '')
-        if "MÁXIMA" in prioridade:
-            self.set_fill_color(254, 242, 242) # Vermelho claro para máxima
-        elif "ALTA" in prioridade:
-            self.set_fill_color(255, 251, 235) # Amarelo claro para alta
-        else:
-            self.set_fill_color(243, 244, 246) # Cinza claro para média
+        if plano_foco:
+            # Recomendação Curta e Ação Imediata em Destaque
+            self.set_fill_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+            self.set_text_color(255, 255, 255)
+            self.set_font("Helvetica", "B", 10)
+            self.cell(0, 10, self.clean_text(f"  ESTRATÉGIA: {plano_foco.get('Recomendacao_Curta', 'N/A')}"), 0, 1, "L", True)
             
-        self.set_font("Helvetica", "B", 11)
-        self.cell(0, 10, self.clean_text(f"  NÍVEL DE PRIORIDADE: {prioridade}"), 0, 1, "L", True)
-        self.ln(3)
-
-        self.set_font("Helvetica", "", 10)
-        for acao in plano_foco.get("Ações", []):
-            acao_limpa = acao.replace("**", "")
-            acao_limpa = self.clean_text(acao_limpa)
-            
-            # Bullet point estilizado
-            self.set_text_color(self.accent_color[0], self.accent_color[1], self.accent_color[2])
-            self.set_font("Helvetica", "B", 12)
-            self.set_x(12)
-            self.cell(5, 6, ">", 0, 0)
-            
-            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
+            self.set_fill_color(243, 244, 246)
+            self.set_text_color(31, 41, 55)
+            self.set_font("Helvetica", "B", 10)
+            self.cell(0, 8, "  AÇÃO IMEDIATA RECOMENDADA:", 0, 1, "L", True)
             self.set_font("Helvetica", "", 10)
-            self.multi_cell(0, 6, acao_limpa)
-            self.ln(2)
+            self.multi_cell(0, 7, self.clean_text(f"  {plano_foco.get('Acao_Imediata', 'N/A')}"), 0, "L", True)
+            self.ln(5)
+
+            # Detalhamento das Ações
+            self.set_font("Helvetica", "B", 10)
+            self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+            self.cell(0, 8, "Detalhamento da Análise:", 0, 1, "L")
+            
+            self.set_font("Helvetica", "", 10)
+            self.set_text_color(31, 41, 55)
+            for acao in plano_foco.get("Ações", []):
+                acao_limpa = acao.replace("**", "")
+                self.set_x(15)
+                self.multi_cell(0, 6, self.clean_text(f"- {acao_limpa}"))
+                self.ln(1)
+        else:
+            self.set_font("Helvetica", "I", 10)
+            self.cell(0, 8, "Análise detalhada não disponível para esta subcategoria.", 0, 1, "L")
 
     def clean_text(self, text):
         if not text: return ""
@@ -353,7 +380,7 @@ class PDFReportGenerator(FPDF):
         self.add_market_opportunities()
         self.add_growth_scenarios()
         self.add_demand_projection()
-        self.add_action_plan()
+        self.add_anomalies_and_recommendations()
         self.output(filename)
 
     def gerar_relatorio(self):
@@ -363,7 +390,7 @@ class PDFReportGenerator(FPDF):
         self.add_market_opportunities()
         self.add_growth_scenarios()
         self.add_demand_projection()
-        self.add_action_plan()
+        self.add_anomalies_and_recommendations()
         
         # No fpdf2, output() sem argumentos retorna um bytearray
         # Convertemos para bytes para evitar o erro "Invalid binary data format"

@@ -1116,3 +1116,175 @@ with tab5:
                 • Crescimento: <span style="color: {c_color}; font-weight: bold;">{c_val:,.1f}%</span>
             </div>
             """, unsafe_allow_html=True)
+
+        # ==========================================
+        # NOVO: DASHBOARD DE ANOMALIAS E OPORTUNIDADES
+        # ==========================================
+        st.markdown("---")
+        st.markdown("### 🚨 Dashboard de Anomalias e Oportunidades")
+        
+        anomalias = analyzer.identificar_anomalias(row_foco['Categoria Macro'])
+        
+        if anomalias:
+            anom_col1, anom_col2 = st.columns([2, 1])
+            with anom_col1:
+                for anom in anomalias:
+                    cor_sev = "#FF4B4B" if anom['severidade'] == "Alta" else ("#FFA421" if anom['severidade'] == "Média" else "#1E3A8A")
+                    st.markdown(f"""
+                    <div class="insight-card" style="border-left-color: {cor_sev};">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-weight: bold; color: #FFFFFF; font-size: 1.1rem;">{anom['tipo']}</span>
+                            <span style="background-color: {cor_sev}; color: #FFFFFF; padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold;">{anom['severidade']}</span>
+                        </div>
+                        <div style="color: #E0E0E0; font-size: 1rem;">
+                            <strong>{anom['subcategoria']}</strong><br>
+                            {anom['mensagem']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            with anom_col2:
+                st.metric("Total de Anomalias", len(anomalias), delta="Críticas detectadas")
+        else:
+            st.success("✅ Nenhuma anomalia crítica detectada. Seu portfólio está bem equilibrado!")
+        
+        # ==========================================
+        # NOVO: MATRIZ DE RECOMENDAÇÃO AUTOMÁTICA (AÇÃO IMEDIATA)
+        # ==========================================
+        st.markdown("---")
+        st.markdown("### 🎯 Matriz de Recomendação Automática (Ação Imediata)")
+        
+        plano_completo = analyzer.gerar_plano_acao(row_foco['Categoria Macro'])
+        
+        if plano_completo:
+            # Criar uma tabela visual das recomendações
+            rec_data = []
+            for rec in plano_completo:
+                rec_data.append({
+                    "Subcategoria": rec['Subcategoria'],
+                    "Prioridade": rec['Prioridade'],
+                    "Recomendação": rec['Recomendacao_Curta'],
+                    "Ação Imediata": rec['Acao_Imediata']
+                })
+            
+            df_rec = pd.DataFrame(rec_data)
+            
+            # Exibir em colunas para melhor visualização
+            for idx, rec in enumerate(plano_completo):
+                if idx % 2 == 0:
+                    rec_col1, rec_col2 = st.columns(2)
+                
+                col_target = rec_col1 if idx % 2 == 0 else rec_col2
+                
+                with col_target:
+                    st.markdown(f"""
+                    <div class="insight-card" style="border-left-color: {rec['Cor']}; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="font-weight: bold; color: #FFFFFF; font-size: 1.1rem;">{rec['Subcategoria']}</span>
+                            <span style="background-color: {rec['Cor']}; color: #FFFFFF; padding: 4px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold;">{rec['Prioridade']}</span>
+                        </div>
+                        <div style="margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                            <div style="color: #A0A0A0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Recomendação</div>
+                            <div style="color: #FFFFFF; font-weight: bold; font-size: 1rem;">{rec['Recomendacao_Curta']}</div>
+                        </div>
+                        <div style="padding: 10px; background: rgba({rec['Cor'].lstrip('#')}, 0.1); border-radius: 8px; border-left: 3px solid {rec['Cor']};">
+                            <div style=\"color: #A0A0A0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;\">Ação Imediata</div>
+                            <div style="color: #FFFFFF; font-size: 0.95rem;">{rec['Acao_Imediata']}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # ==========================================
+        # NOVO: SIMULADOR WHAT-IF (O que acontece se...?)
+        # ==========================================
+        st.markdown("---")
+        st.markdown("### 🔮 Simulador What-if (O que acontece se...?)")
+        
+        with st.expander("⚙️ Simular Mudanças de Preço e Volume", expanded=False):
+            sim_col1, sim_col2, sim_col3 = st.columns(3)
+            
+            with sim_col1:
+                preco_change = st.slider("Mudança de Preço (%)", -50.0, 50.0, 0.0, 5.0, key="price_sim")
+            
+            with sim_col2:
+                volume_change = st.slider("Mudança de Volume (%)", -50.0, 100.0, 0.0, 5.0, key="volume_sim")
+            
+            with sim_col3:
+                st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+                simular_btn = st.button("🚀 Simular Cenário", use_container_width=True)
+            
+            if simular_btn or 'what_if_result' in st.session_state:
+                # Calcular impacto
+                ticket_atual = float(row_foco['Ticket Cliente'])
+                novo_ticket = ticket_atual * (1 + preco_change / 100)
+                
+                fat_atual = float(analyzer.cliente_data.get('faturamento_3m', 0))
+                novo_fat = fat_atual * (1 + volume_change / 100)
+                
+                margem = float(analyzer.cliente_data.get('margem', 0.35))
+                lucro_atual = fat_atual * margem
+                lucro_novo = novo_fat * margem
+                delta_lucro = lucro_novo - lucro_atual
+                
+                # Exibir resultados
+                st.markdown("#### 📊 Resultado da Simulação")
+                
+                sim_res_col1, sim_res_col2, sim_res_col3, sim_res_col4 = st.columns(4)
+                
+                with sim_res_col1:
+                    st.markdown(f"""
+                    <div class="insight-card">
+                        <div class="insight-title">Novo Ticket</div>
+                        <div style="font-size: 1.5rem; color: #1E3A8A; font-weight: bold;">R$ {format_br(novo_ticket)}</div>
+                        <div style="font-size: 0.85rem; color: #A0A0A0; margin-top: 5px;">
+                            Mudança: <span style="color: {'#2ecc71' if novo_ticket > ticket_atual else '#e74c3c'}; font-weight: bold;">{preco_change:+.1f}%</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with sim_res_col2:
+                    st.markdown(f"""
+                    <div class="insight-card">
+                        <div class="insight-title">Novo Faturamento</div>
+                        <div style="font-size: 1.5rem; color: #1E3A8A; font-weight: bold;">R$ {format_br(novo_fat)}</div>
+                        <div style="font-size: 0.85rem; color: #A0A0A0; margin-top: 5px;">
+                            Mudança: <span style="color: {'#2ecc71' if novo_fat > fat_atual else '#e74c3c'}; font-weight: bold;">{volume_change:+.1f}%</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with sim_res_col3:
+                    st.markdown(f"""
+                    <div class="insight-card">
+                        <div class="insight-title">Novo Lucro (3M)</div>
+                        <div style="font-size: 1.5rem; color: #1E3A8A; font-weight: bold;">R$ {format_br(lucro_novo)}</div>
+                        <div style="font-size: 0.85rem; color: #A0A0A0; margin-top: 5px;">
+                            Margem: {margem*100:.1f}%
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with sim_res_col4:
+                    delta_pct = (delta_lucro / lucro_atual * 100) if lucro_atual > 0 else 0
+                    cor_delta = "#2ecc71" if delta_lucro > 0 else "#e74c3c"
+                    st.markdown(f"""
+                    <div class="insight-card">
+                        <div class="insight-title">Impacto no Lucro</div>
+                        <div style="font-size: 1.5rem; color: {cor_delta}; font-weight: bold;">R$ {format_br(abs(delta_lucro))}</div>
+                        <div style="font-size: 0.85rem; color: #A0A0A0; margin-top: 5px;">
+                            <span style="color: {cor_delta}; font-weight: bold;">{delta_pct:+.1f}%</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Insight da simulação
+                st.markdown("#### 💡 Insight da Simulação")
+                if preco_change > 0 and volume_change < 0:
+                    insight = f"⚠️ **Atenção**: Aumentar preço em {preco_change:.1f}% pode reduzir volume em {abs(volume_change):.1f}%. Avalie a elasticidade do seu produto."
+                elif preco_change < 0 and volume_change > 0:
+                    insight = f"✅ **Oportunidade**: Reduzir preço em {abs(preco_change):.1f}% pode aumentar volume em {volume_change:.1f}%. Verifique se a margem continua saudável."
+                elif delta_lucro > 0:
+                    insight = f"🚀 **Positivo**: Este cenário aumentaria seu lucro em R$ {format_br(delta_lucro)}. Considere implementar."
+                else:
+                    insight = f"📉 **Cuidado**: Este cenário reduziria seu lucro em R$ {format_br(abs(delta_lucro))}. Revise a estratégia."
+                
+                st.info(insight)
