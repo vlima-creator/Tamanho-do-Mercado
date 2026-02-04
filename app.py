@@ -256,11 +256,12 @@ with st.sidebar:
                 sub_foco = st.session_state.get("selected_sub_cat_foco", "")
                 
                 if cat_foco and sub_foco:
-                    df_foco = current_analyzer.get_mercado_categoria_df(cat_foco)
-                    if not df_foco.empty and sub_foco in df_foco["Subcategoria"].values:
-                        row_foco = df_foco[df_foco["Subcategoria"] == sub_foco].iloc[0].to_dict()
+                    # Obter a row_foco completa do ranking, que contém todos os dados necessários
+                    df_ranking_completo = current_analyzer.gerar_ranking(cat_foco)
+                    if not df_ranking_completo.empty and sub_foco in df_ranking_completo["Subcategoria"].values:
+                        row_foco = df_ranking_completo[df_ranking_completo["Subcategoria"] == sub_foco].iloc[0].to_dict()
                     else:
-                        row_foco = {"Categoria Macro": cat_foco, "Subcategoria": sub_foco}
+                        row_foco = {"Categoria Macro": cat_foco, "Subcategoria": sub_foco, "Score": 0, "Status": "N/A", "Leitura": "N/A", "Ticket Cliente": current_analyzer.cliente_data.get("ticket_medio", 0)} # Fallback mais robusto
                 else:
                     # Fallback: usar a primeira categoria/subcategoria disponível de forma segura
                     cat_foco = ""
@@ -271,11 +272,11 @@ with st.sidebar:
                         cat_foco = list(current_analyzer.mercado_subcategorias.keys())[0]
                         if current_analyzer.mercado_subcategorias[cat_foco]:
                             sub_foco = current_analyzer.mercado_subcategorias[cat_foco][0]['subcategoria']
-                            df_foco = current_analyzer.get_mercado_categoria_df(cat_foco)
-                            if not df_foco.empty:
-                                row_foco = df_foco.iloc[0].to_dict()
+                            df_ranking_completo = current_analyzer.gerar_ranking(cat_foco)
+                            if not df_ranking_completo.empty:
+                                row_foco = df_ranking_completo[df_ranking_completo["Subcategoria"] == sub_foco].iloc[0].to_dict()
 
-                pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, sub_foco, row_foco)
+                pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, cat_foco, sub_foco, row_foco)
                 pdf_file_path = "relatorio_executivo.pdf"
                 pdf.generate_report(pdf_file_path)
 
