@@ -270,6 +270,12 @@ st.markdown("""
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
     
+    /* Esconder elementos indesejados no topo da sidebar */
+    [data-testid="stSidebarNav"]::before {
+        content: "";
+        display: none;
+    }
+    
     /* Botões Minimalistas */
     .stButton>button {
         border-radius: 0.8rem;
