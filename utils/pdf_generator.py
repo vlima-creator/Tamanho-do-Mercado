@@ -244,10 +244,17 @@ class PDFReportGenerator(FPDF):
             self.chapter_body("Recomendações em fase de processamento.")
             return
 
-        # Prioridade em destaque
-        self.set_fill_color(254, 242, 242) if plano_foco['Status'] == "FOCO" else self.set_fill_color(255, 251, 235)
+        # Prioridade em destaque - Usando a prioridade para definir a cor
+        prioridade = plano_foco.get('Prioridade', '')
+        if "MÁXIMA" in prioridade:
+            self.set_fill_color(254, 242, 242) # Vermelho claro para máxima
+        elif "ALTA" in prioridade:
+            self.set_fill_color(255, 251, 235) # Amarelo claro para alta
+        else:
+            self.set_fill_color(243, 244, 246) # Cinza claro para média
+            
         self.set_font("Helvetica", "B", 11)
-        self.cell(0, 10, self.clean_text(f"  NÍVEL DE PRIORIDADE: {plano_foco['Prioridade']}"), 0, 1, "L", True)
+        self.cell(0, 10, self.clean_text(f"  NÍVEL DE PRIORIDADE: {prioridade}"), 0, 1, "L", True)
         self.ln(3)
 
         self.set_font("Helvetica", "", 10)
