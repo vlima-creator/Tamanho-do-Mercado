@@ -966,17 +966,35 @@ with tab5:
             valores = tendencia_res.get('mensal', [0, 0, 0])
             df_proj = pd.DataFrame({"Mês": meses, "Faturamento": valores})
             
+            # Calcular um range seguro para o eixo Y não cortar o texto
+            max_val = max(valores) if valores else 0
+            y_range = [0, max_val * 1.25] if max_val > 0 else [0, 100]
+
             fig_proj = px.bar(df_proj, x="Mês", y="Faturamento",
                              text=[f"R$ {format_br(v)}" for v in valores],
                              title="Projeção Mensal Detalhada",
                              color_discrete_sequence=["#1E3A8A"])
-            fig_proj.update_traces(textposition='outside')
+            
+            fig_proj.update_traces(
+                textposition='outside',
+                textfont=dict(size=11, color='#FFFFFF'),
+                cliponaxis=False  # Garante que o texto não seja cortado pelas bordas
+            )
+            
             fig_proj.update_layout(
-                height=250,
-                margin=dict(l=0, r=0, t=30, b=0),
+                height=300, # Aumentado levemente para melhor respiro
+                margin=dict(l=10, r=10, t=50, b=10), # Mais margem no topo para o título e valores
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#FFFFFF')
+                font=dict(color='#FFFFFF'),
+                yaxis=dict(
+                    range=y_range,
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)',
+                    zeroline=True,
+                    zerolinecolor='rgba(255,255,255,0.2)'
+                ),
+                xaxis=dict(showgrid=False)
             )
             st.plotly_chart(fig_proj, use_container_width=True)
         
