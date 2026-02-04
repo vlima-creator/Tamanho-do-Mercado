@@ -116,36 +116,78 @@ class PDFReportGenerator(FPDF):
         df_ranking = self.analyzer.gerar_ranking()
         if df_ranking.empty: return
 
+        # 2.1. Melhores Oportunidades
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+        self.cell(0, 8, "2.1. Melhores Oportunidades (Foco e OK)", 0, 1, "L")
+        self.ln(2)
+
         df_foco_ok = df_ranking[df_ranking["Status"].isin(["FOCO", "OK"])].sort_values(by="Score", ascending=False).head(5)
         
-        # Cabeçalho da Tabela Estilizada
-        self.set_fill_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
-        self.set_text_color(255, 255, 255)
-        self.set_font("Helvetica", "B", 10)
-        
-        self.cell(80, 10, " SUBCATEGORIA", 0, 0, 'L', True)
-        self.cell(40, 10, " MERCADO (6M)", 0, 0, 'C', True)
-        self.cell(30, 10, " SCORE", 0, 0, 'C', True)
-        self.cell(40, 10, " STATUS", 0, 1, 'C', True)
-        
-        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
-        self.set_font("Helvetica", "", 9)
-        
-        fill = False
-        for _, row in df_foco_ok.iterrows():
-            self.set_fill_color(self.secondary_color[0], self.secondary_color[1], self.secondary_color[2])
-            self.cell(80, 8, f" {self.clean_text(str(row['Subcategoria'])[:40])}", 0, 0, 'L', fill)
-            self.cell(40, 8, f"R$ {self.format_br(row['Mercado (R$)'])}", 0, 0, 'C', fill)
-            self.cell(30, 8, f"{row['Score']:.2f}", 0, 0, 'C', fill)
+        if not df_foco_ok.empty:
+            # Cabeçalho da Tabela
+            self.set_fill_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+            self.set_text_color(255, 255, 255)
+            self.set_font("Helvetica", "B", 9)
+            self.cell(80, 8, " SUBCATEGORIA", 0, 0, 'L', True)
+            self.cell(40, 8, " MERCADO (6M)", 0, 0, 'C', True)
+            self.cell(30, 8, " SCORE", 0, 0, 'C', True)
+            self.cell(40, 8, " STATUS", 0, 1, 'C', True)
             
-            # Cor baseada no status
-            status = row['Status']
-            if status == "FOCO": self.set_text_color(220, 38, 38)
-            elif status == "OK": self.set_text_color(5, 150, 105)
-            
-            self.cell(40, 8, status, 0, 1, 'C', fill)
             self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
-            fill = not fill
+            self.set_font("Helvetica", "", 8)
+            fill = False
+            for _, row in df_foco_ok.iterrows():
+                self.set_fill_color(self.secondary_color[0], self.secondary_color[1], self.secondary_color[2])
+                self.cell(80, 7, f" {self.clean_text(str(row['Subcategoria'])[:40])}", 0, 0, 'L', fill)
+                self.cell(40, 7, f"R$ {self.format_br(row['Mercado (R$)'])}", 0, 0, 'C', fill)
+                self.cell(30, 7, f"{row['Score']:.2f}", 0, 0, 'C', fill)
+                status = row['Status']
+                if status == "FOCO": self.set_text_color(220, 38, 38)
+                elif status == "OK": self.set_text_color(5, 150, 105)
+                self.cell(40, 7, status, 0, 1, 'C', fill)
+                self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
+                fill = not fill
+        else:
+            self.set_font("Helvetica", "I", 9)
+            self.cell(0, 8, "Nenhuma oportunidade de alto impacto identificada.", 0, 1)
+
+        self.ln(5)
+
+        # 2.2. Categorias a Monitorar/Evitar
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+        self.cell(0, 8, "2.2. Categorias a Monitorar/Evitar", 0, 1, "L")
+        self.ln(2)
+
+        df_evitar = df_ranking[df_ranking["Status"] == "EVITAR"].sort_values(by="Score", ascending=True).head(5)
+        
+        if not df_evitar.empty:
+            # Cabeçalho da Tabela
+            self.set_fill_color(107, 114, 128) # Cinza para evitar
+            self.set_text_color(255, 255, 255)
+            self.set_font("Helvetica", "B", 9)
+            self.cell(80, 8, " SUBCATEGORIA", 0, 0, 'L', True)
+            self.cell(40, 8, " MERCADO (6M)", 0, 0, 'C', True)
+            self.cell(30, 8, " SCORE", 0, 0, 'C', True)
+            self.cell(40, 8, " STATUS", 0, 1, 'C', True)
+            
+            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
+            self.set_font("Helvetica", "", 8)
+            fill = False
+            for _, row in df_evitar.iterrows():
+                self.set_fill_color(self.secondary_color[0], self.secondary_color[1], self.secondary_color[2])
+                self.cell(80, 7, f" {self.clean_text(str(row['Subcategoria'])[:40])}", 0, 0, 'L', fill)
+                self.cell(40, 7, f"R$ {self.format_br(row['Mercado (R$)'])}", 0, 0, 'C', fill)
+                self.cell(30, 7, f"{row['Score']:.2f}", 0, 0, 'C', fill)
+                self.set_text_color(156, 163, 175) # Cinza claro para status evitar
+                self.cell(40, 7, row['Status'], 0, 1, 'C', fill)
+                self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
+                fill = not fill
+        else:
+            self.set_font("Helvetica", "I", 9)
+            self.cell(0, 8, "Nenhuma categoria crítica identificada no momento.", 0, 1)
+        
         self.ln(5)
 
     def add_growth_scenarios(self):
