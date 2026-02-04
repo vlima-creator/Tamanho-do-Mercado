@@ -1,4 +1,4 @@
-from fpdf import FPDF
+from fpdf import FPDF # fpdf2
 from datetime import datetime
 import pandas as pd
 
@@ -346,3 +346,15 @@ class PDFReportGenerator(FPDF):
         self.add_demand_projection()
         self.add_action_plan()
         self.output(filename)
+
+    def gerar_relatorio(self):
+        """Gera o relatório em memória e retorna bytes para o Streamlit"""
+        self.add_page()
+        self.add_summary()
+        self.add_market_opportunities()
+        self.add_growth_scenarios()
+        self.add_demand_projection()
+        self.add_action_plan()
+        
+        # No fpdf2, output() sem argumentos retorna os bytes do PDF
+        return self.output()
