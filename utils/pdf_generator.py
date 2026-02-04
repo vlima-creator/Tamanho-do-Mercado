@@ -356,5 +356,7 @@ class PDFReportGenerator(FPDF):
         self.add_demand_projection()
         self.add_action_plan()
         
-        # No fpdf2, output() sem argumentos retorna os bytes do PDF
-        return self.output()
+        # No fpdf2, output() sem argumentos retorna um bytearray
+        # Convertemos para bytes para evitar o erro "Invalid binary data format"
+        pdf_data = self.output()
+        return bytes(pdf_data) if isinstance(pdf_data, (bytearray, list)) else pdf_data
