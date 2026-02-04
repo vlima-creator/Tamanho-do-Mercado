@@ -3,13 +3,14 @@ from datetime import datetime
 import pandas as pd
 
 class PDFReportGenerator(FPDF):
-    def __init__(self, analyzer, cliente_data, cat_foco, sub_foco, row_foco):
+    def __init__(self, analyzer, cliente_data, cat_foco, sub_foco, row_foco, chart_images=None):
         super().__init__()
         self.analyzer = analyzer
         self.cliente_data = cliente_data
         self.cat_foco = cat_foco
         self.sub_foco = sub_foco
         self.row_foco = row_foco
+        self.chart_images = chart_images if chart_images else {}
         self.set_auto_page_break(auto=True, margin=20)
         
         # Cores da Identidade Visual (Moderno/Minimalista)
@@ -117,8 +118,45 @@ class PDFReportGenerator(FPDF):
         
         self.set_y(curr_y + 25)
 
+    def add_market_share_indicators(self):
+        if not self.chart_images:
+            return
+            
+        self.section_title("2. Indicadores de Market Share")
+        
+        # Inserir imagens dos gráficos
+        curr_y = self.get_y()
+        
+        # Gráfico 1: Score (Gauge)
+        if 'score_gauge' in self.chart_images:
+            self.set_font("Helvetica", "B", 10)
+            self.cell(95, 8, "2.1. Score de Oportunidade", 0, 0, "C")
+            
+        # Gráfico 2: Tickets
+        if 'ticket_comp' in self.chart_images:
+            self.set_x(110)
+            self.cell(95, 8, "2.2. Comparação de Tickets", 0, 1, "C")
+        else:
+            self.ln(8)
+            
+        img_y = self.get_y()
+        
+        if 'score_gauge' in self.chart_images:
+            # Tentar carregar a imagem dos bytes
+            import io
+            img_data = io.BytesIO(self.chart_images['score_gauge'])
+            self.image(img_data, x=10, y=img_y, w=90)
+            
+        if 'ticket_comp' in self.chart_images:
+            import io
+            img_data = io.BytesIO(self.chart_images['ticket_comp'])
+            self.image(img_data, x=110, y=img_y, w=90)
+            
+        self.set_y(img_y + 65) # Espaço para os gráficos
+        self.ln(5)
+
     def add_market_opportunities(self):
-        self.section_title("2. Matriz de Oportunidades")
+        self.section_title("3. Matriz de Oportunidades")
         df_ranking = self.analyzer.gerar_ranking()
         if df_ranking.empty: return
 
@@ -197,7 +235,7 @@ class PDFReportGenerator(FPDF):
         self.ln(5)
 
     def add_growth_scenarios(self):
-        self.section_title("3. Cenários de Crescimento")
+        self.section_title("4. Cenários de Crescimento")
         res = self.analyzer.simular_cenarios(self.cat_foco, self.sub_foco)
         df = res.get("cenarios", pd.DataFrame())
         if df.empty: return
@@ -252,7 +290,7 @@ class PDFReportGenerator(FPDF):
         self.ln(5)
 
     def add_demand_projection(self):
-        self.section_title("4. Projeção de Demanda (90 dias)")
+        self.section_title("5. Projeção de Demanda (90 dias)")
         tendencia_res = self.analyzer.calcular_tendencia(self.cat_foco)
         valores_raw = tendencia_res.get("mensal", [0, 0, 0])
         # Garantir que todos os valores sejam float
@@ -287,7 +325,7 @@ class PDFReportGenerator(FPDF):
         self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
 
     def add_anomalies_and_recommendations(self):
-        self.section_title("5. Diagnóstico de Anomalias e Ação Imediata")
+        self.section_title("6. Diagnóstico de Anomalias e Ação Imediata")
         
         # 5.1. Anomalias Detectadas
         anomalias = self.analyzer.identificar_anomalias(self.cat_foco)
@@ -387,6 +425,7 @@ class PDFReportGenerator(FPDF):
         """Gera o relatório em memória e retorna bytes para o Streamlit"""
         self.add_page()
         self.add_summary()
+        self.add_market_share_indicators()
         self.add_market_opportunities()
         self.add_growth_scenarios()
         self.add_demand_projection()

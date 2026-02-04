@@ -551,12 +551,29 @@ with st.sidebar:
                             
                         row_foco_pdf = df_rank_pdf[df_rank_pdf["Subcategoria"] == sub_foco].iloc[0]
                         
+                        # Gerar imagens dos gráficos para o PDF
+                        chart_images = {}
+                        try:
+                            # 1. Gauge Score
+                            fig_gauge = criar_gauge_score(row_foco_pdf['Score'], row_foco_pdf['Status'])
+                            chart_images['score_gauge'] = fig_gauge.to_image(format="png", width=600, height=400, scale=2)
+                            
+                            # 2. Comparação de Tickets
+                            r_perm = current_analyzer.cliente_data.get('range_permitido', 0.20)
+                            res_sim = current_analyzer.simular_cenarios(cat_foco, sub_foco)
+                            l_inf, l_sup = calcular_limites_ticket_local(res_sim['ticket_mercado'], r_perm)
+                            fig_ticket = criar_comparacao_tickets(res_sim['ticket_mercado'], row_foco_pdf['Ticket Cliente'], l_inf, l_sup)
+                            chart_images['ticket_comp'] = fig_ticket.to_image(format="png", width=600, height=400, scale=2)
+                        except Exception as img_err:
+                            st.warning(f"Aviso: Alguns gráficos não puderam ser incluídos no PDF: {img_err}")
+
                         pdf_gen = PDFReportGenerator(
                             analyzer=current_analyzer,
                             cliente_data=current_analyzer.cliente_data,
                             cat_foco=cat_foco,
                             sub_foco=sub_foco,
-                            row_foco=row_foco_pdf
+                            row_foco=row_foco_pdf,
+                            chart_images=chart_images
                         )
                         pdf_buffer = pdf_gen.gerar_relatorio()
                         st.download_button(
