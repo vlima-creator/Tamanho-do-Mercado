@@ -671,7 +671,7 @@ elif menu == "📊 Dashboard Executivo":
             st.markdown("### 📈 Tendência e Projeção de Demanda")
             
             # Cálculo de Confiabilidade
-            confianca = analyzer.calcular_confianca(row_foco['Categoria Macro'], sub_foco)
+            confianca = analyzer.calcular_confianca(row_foco['Categoria Macro'], sub_foco_dashboard)
             cor_conf = "green" if confianca['nivel'] == "Alta" else ("orange" if confianca['nivel'] == "Média" else "red")
             
             st.markdown(f"**Índice de Confiança da Projeção:** <span style='color:{cor_conf}; font-weight:bold;'>{confianca['score']}% ({confianca['nivel']})</span>", unsafe_allow_html=True)
@@ -707,7 +707,7 @@ elif menu == "📊 Dashboard Executivo":
             st.markdown("### 🧠 Plano de Ação Sugerido")
             plano = analyzer.gerar_plano_acao(row_foco['Categoria Macro'])
             # Filtrar apenas para a subcategoria em foco para ser mais específico
-            sub_plano = next((p for p in plano if p['Subcategoria'] == sub_foco), None)
+            sub_plano = next((p for p in plano if p['Subcategoria'] == sub_foco_dashboard), None)
             
             if sub_plano:
                 # Trava de segurança para compatibilidade entre versões (KeyError: 'Ações')
