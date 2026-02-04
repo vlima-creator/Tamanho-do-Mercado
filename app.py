@@ -611,7 +611,7 @@ elif menu == "📊 Dashboard Executivo":
             }
             
             # Obter resultados da simulação
-            res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco, custom_shares)
+            res = analyzer.simular_cenarios(row_foco['Categoria Macro'], sub_foco_dashboard, custom_shares)
             
             # Cards de Indicadores Principais
             st.markdown("#### 📈 Indicadores de Market Share")
