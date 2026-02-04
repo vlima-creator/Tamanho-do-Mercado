@@ -32,7 +32,7 @@ from utils.visualizations import (
 
 # Configuração da página
 st.set_page_config(
-    page_title="Análise de Mercado",
+    page_title="Inteligência de Mercado",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -86,7 +86,7 @@ def calcular_limites_ticket_local(ticket_mercado, range_permitido=0.20):
     sup = ticket_mercado * (1 + range_permitido)
     return inf, sup
 
-def criar_metric_card(icon, label, value, border_color="#00FF00"):
+def criar_metric_card(icon, label, value, border_color="#1E3A8A"):
     """Cria um card de métrica estilizado"""
     return f"""
     <div style="
@@ -102,7 +102,7 @@ def criar_metric_card(icon, label, value, border_color="#00FF00"):
         <div style="
             font-size: 2.5rem;
             margin-bottom: 12px;
-            filter: drop-shadow(0 0 8px rgba(0, 255, 0, 0.3));
+            filter: drop-shadow(0 0 8px rgba(30, 58, 138, 0.3));
         ">{icon}</div>
         <div style="
             font-size: 0.75rem;
@@ -155,7 +155,7 @@ def processar_excel(file):
             return default
 
         empresa = str(get_val_by_label(["Empresa", "Nome"], "Empresa Exemplo"))
-        cat_macro_cliente = str(get_val_by_label(["Categoria Macro", "Macro"], "Geral"))
+        cat_macro_cliente = str(get_val_by_label(["Categoria Macro", "Macro", "Categoria"], "Geral"))
         ticket_medio = safe_float(get_val_by_label(["Ticket Médio Geral", "Ticket Médio"], 0))
         margem = safe_float(get_val_by_label(["Margem Atual", "Margem"], 0))
         fat_3m = safe_float(get_val_by_label(["Faturamento Médio 3M", "Faturamento"], 0))
@@ -241,6 +241,12 @@ st.markdown("""
         background-color: #000000 !important;
     }
     
+    /* Azul Noite */
+    :root {
+        --accent-blue: #1E3A8A;
+        --accent-blue-hover: #1e40af;
+    }
+    
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
@@ -296,7 +302,7 @@ st.markdown("""
     
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 255, 0, 0.2);
+        box-shadow: 0 6px 12px rgba(30, 58, 138, 0.2);
     }
     
     .metric-label {
@@ -335,15 +341,15 @@ st.markdown("""
     
     .stTabs [aria-selected="true"] {
         background-color: transparent;
-        color: #00FF00;
-        border-bottom: 3px solid #00FF00;
+        color: #1E3A8A;
+        border-bottom: 3px solid #1E3A8A;
     }
     
     /* Insight Cards */
     .insight-card {
         background: linear-gradient(135deg, #1a1a1a 0%, #1e1e1e 100%);
         border: 1px solid #333333;
-        border-left: 4px solid #00FF00;
+        border-left: 4px solid #1E3A8A;
         border-radius: 8px;
         padding: 1.5rem;
         margin-bottom: 1rem;
@@ -368,14 +374,14 @@ st.markdown("""
     }
     
     .stTextInput input:focus, .stNumberInput input:focus, .stSelectbox select:focus {
-        border-color: #00FF00 !important;
-        box-shadow: 0 0 0 1px #00FF00 !important;
+        border-color: #1E3A8A !important;
+        box-shadow: 0 0 0 1px #1E3A8A !important;
     }
     
     /* Botões */
     .stButton button {
-        background: linear-gradient(135deg, #00FF00 0%, #00CC00 100%);
-        color: #000000;
+        background: linear-gradient(135deg, #1E3A8A 0%, #1e40af 100%);
+        color: #FFFFFF;
         border: none;
         border-radius: 8px;
         padding: 0.6rem 1.5rem;
@@ -386,8 +392,8 @@ st.markdown("""
     }
     
     .stButton button:hover {
-        background: linear-gradient(135deg, #00CC00 0%, #009900 100%);
-        box-shadow: 0 4px 12px rgba(0, 255, 0, 0.4);
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
         transform: translateY(-2px);
     }
     
@@ -439,7 +445,7 @@ st.markdown("""
     }
     
     ::-webkit-scrollbar-thumb:hover {
-        background: #00FF00;
+        background: #1E3A8A;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -451,10 +457,10 @@ with st.sidebar:
     <div style="text-align: center; padding: 1rem 0 2rem 0;">
         <div style="font-size: 3rem; margin-bottom: 0.5rem;">📊</div>
         <div style="font-size: 1.5rem; font-weight: bold; color: #FFFFFF; text-transform: uppercase; letter-spacing: 2px;">
-            Análise de Mercado
+            Inteligência de Mercado
         </div>
         <div style="font-size: 0.9rem; color: #A0A0A0; margin-top: 0.3rem;">
-            Diagnóstico & Ações
+            Inteligência de dados aplicada à expansão do seu negócio.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -497,23 +503,45 @@ with st.sidebar:
     current_analyzer = st.session_state.analyzer
 
     if st.button("Gerar Relatório PDF", use_container_width=True, key="pdf_button"):
-        if current_analyzer.cliente_data and (current_analyzer.mercado_categoria or current_analyzer.mercado_subcategorias):
-            with st.spinner("Gerando relatório..."):
-                try:
-                    pdf_gen = PDFReportGenerator(current_analyzer)
-                    pdf_buffer = pdf_gen.gerar_relatorio()
-                    st.download_button(
-                        label="📥 Download PDF",
-                        data=pdf_buffer,
-                        file_name=f"relatorio_mercado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                    st.success("✅ Relatório gerado com sucesso!")
-                except Exception as e:
-                    st.error(f"Erro ao gerar PDF: {str(e)}")
+        if current_analyzer.cliente_data:
+            # Tentar obter o ranking para o PDF
+            df_rank_pdf = current_analyzer.gerar_ranking()
+            if not df_rank_pdf.empty:
+                with st.spinner("Gerando relatório..."):
+                    try:
+                        # Coletar dados de foco para o PDF
+                        cat_foco = st.session_state.get("selected_macro_cat")
+                        sub_foco = st.session_state.get("selected_sub_cat_foco")
+                        
+                        # Se não houver seleção no session_state, pega o primeiro do ranking
+                        if not sub_foco:
+                            sub_foco = df_rank_pdf.iloc[0]["Subcategoria"]
+                            cat_foco = df_rank_pdf.iloc[0]["Categoria Macro"]
+                            
+                        row_foco_pdf = df_rank_pdf[df_rank_pdf["Subcategoria"] == sub_foco].iloc[0]
+                        
+                        pdf_gen = PDFReportGenerator(
+                            analyzer=current_analyzer,
+                            cliente_data=current_analyzer.cliente_data,
+                            cat_foco=cat_foco,
+                            sub_foco=sub_foco,
+                            row_foco=row_foco_pdf
+                        )
+                        pdf_buffer = pdf_gen.gerar_relatorio()
+                        st.download_button(
+                            label="📥 Download PDF",
+                            data=pdf_buffer,
+                            file_name=f"relatorio_mercado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                        st.success("✅ Relatório gerado com sucesso!")
+                    except Exception as e:
+                        st.error(f"Erro ao gerar PDF: {str(e)}")
+            else:
+                st.warning("É necessário ter subcategorias cadastradas para gerar o relatório.")
         else:
-            st.warning("Adicione dados antes de gerar o relatório.")
+            st.warning("Adicione dados do cliente antes de gerar o relatório.")
 
 # --- CONTEÚDO PRINCIPAL ---
 
@@ -525,8 +553,8 @@ st.markdown("""
     <div style="display: flex; align-items: center;">
         <span style="font-size: 3rem; margin-right: 1rem;">📊</span>
         <div>
-            <h1>ANÁLISE DE MERCADO, DIAGNÓSTICO E AÇÕES</h1>
-            <p>Análise inteligente para decisões rápidas por frente e prioridade</p>
+            <h1>INTELIGÊNCIA DE MERCADO</h1>
+            <p>Inteligência de dados aplicada à expansão do seu negócio.</p>
         </div>
     </div>
 </div>
@@ -589,7 +617,7 @@ with tab1:
             st.markdown(f"""
             <div class="insight-card">
                 <div class="insight-title">Empresa</div>
-                <div style="font-size: 1.3rem; color: #00FF00;">{analyzer.cliente_data.get('empresa', 'N/A')}</div>
+                <div style="font-size: 1.3rem; color: #3b82f6;">{analyzer.cliente_data.get('empresa', 'N/A')}</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -597,7 +625,7 @@ with tab1:
             st.markdown(f"""
             <div class="insight-card">
                 <div class="insight-title">Categoria</div>
-                <div style="font-size: 1.3rem; color: #00FF00;">{analyzer.cliente_data.get('categoria', 'N/A')}</div>
+                <div style="font-size: 1.3rem; color: #3b82f6;">{analyzer.cliente_data.get('categoria_principal', analyzer.cliente_data.get('categoria', 'N/A'))}</div>
             </div>
             """, unsafe_allow_html=True)
         
@@ -605,7 +633,7 @@ with tab1:
             st.markdown(f"""
             <div class="insight-card">
                 <div class="insight-title">Ticket Médio</div>
-                <div style="font-size: 1.3rem; color: #00FF00;">R$ {format_br(analyzer.cliente_data.get('ticket_medio', 0))}</div>
+                <div style="font-size: 1.3rem; color: #3b82f6;">R$ {format_br(analyzer.cliente_data.get('ticket_medio', 0))}</div>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -941,7 +969,7 @@ with tab5:
             fig_proj = px.bar(df_proj, x="Mês", y="Faturamento",
                              text=[f"R$ {format_br(v)}" for v in valores],
                              title="Projeção Mensal Detalhada",
-                             color_discrete_sequence=["#00FF00"])
+                             color_discrete_sequence=["#1E3A8A"])
             fig_proj.update_traces(textposition='outside')
             fig_proj.update_layout(
                 height=250,
@@ -966,10 +994,10 @@ with tab5:
             acoes_html = "".join([f"<li style='margin-bottom: 8px;'>{acao}</li>" for acao in lista_acoes])
             
             st.markdown(f"""
-            <div class="insight-card" style="border-left-color: {sub_plano.get('Cor', '#00FF00')};">
+            <div class="insight-card" style="border-left-color: {sub_plano.get('Cor', '#1E3A8A')};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span style="font-size: 1.3rem; font-weight: bold; color: {sub_plano.get('Cor', '#00FF00')};">🎯 Prioridade: {sub_plano.get('Prioridade', 'N/A')}</span>
-                    <span style="background-color: {sub_plano.get('Cor', '#00FF00')}; color: #000000; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">Score: {sub_plano.get('Score', 0):.2f}</span>
+                    <span style="font-size: 1.3rem; font-weight: bold; color: {sub_plano.get('Cor', '#1E3A8A')};">🎯 Prioridade: {sub_plano.get('Prioridade', 'N/A')}</span>
+                    <span style="background-color: {sub_plano.get('Cor', '#1E3A8A')}; color: #FFFFFF; padding: 4px 12px; border-radius: 15px; font-size: 0.9rem; font-weight: bold;">Score: {sub_plano.get('Score', 0):.2f}</span>
                 </div>
                 <ul style="list-style-type: none; padding-left: 0; font-size: 1.1rem; color: #E0E0E0;">
                     {acoes_html}

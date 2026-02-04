@@ -13,9 +13,9 @@ class PDFReportGenerator(FPDF):
         self.set_auto_page_break(auto=True, margin=20)
         
         # Cores da Identidade Visual (Moderno/Minimalista)
-        self.primary_color = (30, 58, 138)    # Azul Marinho Profissional
+        self.primary_color = (30, 58, 138)    # Azul Noite (#1E3A8A)
         self.secondary_color = (243, 244, 246) # Cinza muito claro para fundos
-        self.accent_color = (59, 130, 246)     # Azul vibrante para destaques
+        self.accent_color = (30, 58, 138)     # Azul Noite para destaques
         self.text_color = (31, 41, 55)        # Cinza escuro para texto
         self.light_text = (107, 114, 128)     # Cinza médio para detalhes
         
