@@ -258,7 +258,10 @@ class PDFReportGenerator(FPDF):
         for acao in plano_foco.get("Ações", []):
             acao_limpa = acao.replace("**", "")
             acao_limpa = self.clean_text(acao_limpa)
-            self.multi_cell(170, 6, f"* {acao_limpa}", border=0, align='L')
+            # Garantir que a posição X volte para a margem esquerda (10mm) antes de cada multi_cell
+            self.set_x(10)
+            self.multi_cell(0, 6, f"* {acao_limpa}", border=0, align='L')
+            self.ln(2) # Pequeno espaço entre as ações
         self.ln(5)
 
     def format_br(self, value):
