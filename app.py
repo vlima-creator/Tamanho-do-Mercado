@@ -31,10 +31,10 @@ from utils.visualizations import (
 
 # Configuração da página
 st.set_page_config(
-    page_title="Dashboard - Inteligência de Mercado",
-    page_icon="📈",
+    page_title="Tamanho do Mercado",
+    page_icon="📊",
     layout="wide",
-    initial_sidebar_state="auto"
+    initial_sidebar_state="expanded"
 )
 
 # --- FUNÇÕES UTILITÁRIAS ---
@@ -205,104 +205,22 @@ def processar_excel(file):
         st.info("Dica: Verifique se as abas 'Cliente', 'Mercado_Categoria' e 'Mercado_Subcategoria' existem e seguem o modelo.")
         return False
 
-# --- CSS CUSTOMIZADO (LIQUID GLASS THEME) ---
+# --- CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
-    /* Importando fonte moderna */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
-    
-    html, body, [class*="st-"] {
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Fundo com gradiente suave */
-    .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    }
-
-    /* Efeito Liquid Glass para o Header */
     .main-header {
-        font-size: 2.2rem; font-weight: 600; color: #f8fafc;
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        text-align: center; padding: 2rem; 
-        border-radius: 1.5rem; margin-bottom: 2rem; 
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        font-size: 2.5rem; font-weight: bold; color: #FFFFFF; background-color: #1E1E1E;
+        text-align: center; padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 2rem; border-bottom: 4px solid #3498db;
     }
-
-    /* Cards com efeito Glassmorphism */
     .metric-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        padding: 1.5rem; border-radius: 1.2rem; 
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        text-align: center;
-        transition: transform 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        background-color: #262730; padding: 1.2rem; border-radius: 0.5rem; border-top: 3px solid #3498db; text-align: center;
     }
-    .metric-card:hover {
-        transform: translateY(-5px);
-        background: rgba(255, 255, 255, 0.08);
-    }
-    .metric-label { font-size: 0.8rem; color: #94a3b8; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
-    .metric-value { font-size: 1.4rem; font-weight: 600; color: #f1f5f9; }
-
-    /* Insight Cards */
+    .metric-label { font-size: 0.85rem; color: #A0A0A0; margin-bottom: 0.3rem; }
+    .metric-value { font-size: 1.2rem; font-weight: bold; color: #FFFFFF; }
     .insight-card {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(12px);
-        padding: 1.5rem; border-radius: 1rem; 
-        border-left: 4px solid #3b82f6; 
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        margin-bottom: 1.2rem;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        background-color: #1E1E1E; padding: 1.5rem; border-radius: 0.5rem; border-left: 5px solid #3498db; margin-bottom: 1rem;
     }
-    .insight-title { font-size: 1rem; font-weight: 600; color: #3b82f6; margin-bottom: 0.8rem; }
-
-    /* Estilização do Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.95);
-        border-right: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    
-    /* Esconder elementos indesejados no topo da sidebar e textos de ícones */
-    [data-testid="stSidebarNav"]::before, 
-    [data-testid="stSidebarNav"] {
-        padding-top: 0px !important;
-    }
-    
-    /* Esconder especificamente o texto problemático se ele aparecer como conteúdo */
-    div[data-testid="stSidebarNav"] span, 
-    div[data-testid="stSidebarNav"] div {
-        color: transparent !important;
-        text-indent: -9999px !important;
-        height: 0px !important;
-        display: none !important;
-    }
-    
-    /* Restaurar a visibilidade apenas dos itens reais do menu se necessário, 
-       mas como estamos usando rádio customizado, vamos garantir que a navegação padrão suma */
-    [data-testid="stSidebarNav"] {
-        display: none !important;
-    }
-    
-    /* Botões Minimalistas */
-    .stButton>button {
-        border-radius: 0.8rem;
-        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-        color: white; border: none;
-        padding: 0.5rem 1rem; font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
-        transform: scale(1.02);
-    }
+    .insight-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -310,14 +228,6 @@ st.markdown("""
 with st.sidebar:
     st.markdown("### 🧭 Navegação")
     menu = st.radio("Escolha a seção:", ["🏠 Início", "👤 Dados do Cliente", "📈 Gestão de Categorias", "🎯 Mercado Subcategorias", "📊 Dashboard Executivo"])
-    # Substituindo ícones por versões mais minimalistas no menu (via mapeamento interno)
-    menu_map = {
-        "🏠 Início": "Home",
-        "👤 Dados do Cliente": "Perfil Cliente",
-        "📈 Gestão de Categorias": "Categorias Macro",
-        "🎯 Mercado Subcategorias": "Subcategorias",
-        "📊 Dashboard Executivo": "Dashboard"
-    }
     
     st.markdown("---")
     st.markdown("### 📤 Importar Dados")
@@ -464,8 +374,7 @@ with st.sidebar:
         st.rerun()
 
 # Header
-st.markdown('<div class="main-header">📈 Dashboard - Inteligência de Mercado</div>', unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 1.1rem; margin-top: -1rem; margin-bottom: 2rem;'>Inteligência de dados aplicada à expansão do seu negócio.</p>", unsafe_allow_html=True)
+st.markdown('<div class="main-header">📊 Tamanho do Mercado</div>', unsafe_allow_html=True)
 
 # Referência curta para o analyzer da sessão
 analyzer = st.session_state.analyzer
