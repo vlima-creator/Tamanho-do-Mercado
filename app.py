@@ -149,14 +149,17 @@ SVG_ICONS = {
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
 else:
-    if not hasattr(st.session_state.analyzer, 'editar_mercado_categoria') or not hasattr(st.session_state.analyzer, 'remover_periodo_categoria'):
+    # Verificar se o analyzer na sessão tem os métodos mais recentes
+    # Se não tiver, migramos os dados para uma nova instância da classe atualizada
+    if not hasattr(st.session_state.analyzer, 'identificar_anomalias') or not hasattr(st.session_state.analyzer, 'editar_mercado_categoria'):
         old_data = st.session_state.analyzer
         new_analyzer = MarketAnalyzer()
+        # Migração segura de dados
         new_analyzer.cliente_data = getattr(old_data, 'cliente_data', {})
         new_analyzer.mercado_categoria = getattr(old_data, 'mercado_categoria', {})
         new_analyzer.mercado_subcategorias = getattr(old_data, 'mercado_subcategorias', {})
         st.session_state.analyzer = new_analyzer
-        st.toast("🔄 Sistema atualizado para nova versão", icon="ℹ️")
+        st.toast("🔄 Sistema atualizado para a versão de Inteligência 2.0", icon="🚀")
 
 # --- LÓGICA DE IMPORTAÇÃO EXCEL ---
 
