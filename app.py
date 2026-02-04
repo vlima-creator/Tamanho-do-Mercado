@@ -31,7 +31,7 @@ from utils.visualizations import (
 
 # Configuração da página
 st.set_page_config(
-    page_title="Tamanho do Mercado",
+    page_title="Dashboard - Inteligência de Mercado",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -374,7 +374,8 @@ with st.sidebar:
         st.rerun()
 
 # Header
-st.markdown('<div class="main-header">📊 Tamanho do Mercado</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📊 Dashboard - Inteligência de Mercado</div>', unsafe_allow_html=True)
+st.markdown("#### Inteligência de dados aplicada à expansão do seu negócio.")
 
 # Referência curta para o analyzer da sessão
 analyzer = st.session_state.analyzer
