@@ -371,8 +371,49 @@ class MarketAnalyzer:
             "mensal": proj_mensal
         }
 
+    def identificar_anomalias(self, categoria: str) -> List[Dict]:
+        """Detecta discrepâncias críticas entre o desempenho do cliente e o mercado"""
+        anomalias = []
+        df_ranking = self.gerar_ranking(categoria)
+        if df_ranking.empty: return []
+
+        for _, row in df_ranking.iterrows():
+            subcat = row['Subcategoria']
+            ticket_m = float(row['Ticket Mercado'])
+            ticket_c = float(row['Ticket Cliente'])
+            status = row['Status']
+            
+            # 1. Anomalia de Preço Crítica (>40% de diferença)
+            if ticket_m > 0:
+                diff_pct = (ticket_c - ticket_m) / ticket_m
+                if diff_pct > 0.4:
+                    anomalias.append({
+                        "tipo": "Preço Crítico (Alto)",
+                        "subcategoria": subcat,
+                        "mensagem": f"Seu preço está {diff_pct*100:.1f}% ACIMA da média. Risco alto de perda de volume.",
+                        "severidade": "Alta"
+                    })
+                elif diff_pct < -0.4:
+                    anomalias.append({
+                        "tipo": "Preço Crítico (Baixo)",
+                        "subcategoria": subcat,
+                        "mensagem": f"Seu preço está {abs(diff_pct)*100:.1f}% ABAIXO da média. Risco de erosão de margem.",
+                        "severidade": "Média"
+                    })
+
+            # 2. Anomalia de Performance (Score Baixo em Mercado Grande)
+            if status == "EVITAR" and row['Mercado (R$)'] > df_ranking['Mercado (R$)'].median():
+                anomalias.append({
+                    "tipo": "Oportunidade Perdida",
+                    "subcategoria": subcat,
+                    "mensagem": "Mercado volumoso, mas sua competitividade é baixa. Reavaliar portfólio.",
+                    "severidade": "Baixa"
+                })
+
+        return anomalias
+
     def gerar_plano_acao(self, categoria: str = None) -> List[Dict]:
-        """Gera recomendações estratégicas detalhadas e acionáveis"""
+        """Gera recomendações estratégicas detalhadas e acionáveis com Matriz de Recomendação Automática"""
         df_ranking = self.gerar_ranking(categoria)
         if df_ranking.empty:
             return []
@@ -388,65 +429,41 @@ class MarketAnalyzer:
             ticket_cliente = row['Ticket Cliente']
             
             acoes = []
-            prioridade = ""
-            cor = ""
             
-            # Determinar Prioridade e Cor
-            if status == "FOCO":
-                prioridade = "MÁXIMA (ESTRATÉGICO)"
-                cor = "#FF4B4B" # Vermelho vibrante
-            elif status == "OK":
-                prioridade = "ALTA (OPORTUNIDADE)"
-                cor = "#FFA421" # Laranja
+            # Matriz de Recomendação Automática (Ação Imediata)
+            if status == "FOCO" and leitura == "Ticket OK":
+                rec_curta = "ESCALAR AGRESSIVO"
+                acao_imediata = "Aumentar investimento em Ads em 20% e garantir estoque para 60 dias."
+            elif status == "FOCO" and "Aumentar" in leitura:
+                rec_curta = "AJUSTAR MARGEM"
+                acao_imediata = "Subir preço gradualmente (3-5%) e monitorar conversão."
+            elif status == "OK" and leitura == "Ticket OK":
+                rec_curta = "MANTER E OTIMIZAR"
+                acao_imediata = "Focar em melhorar o CTR dos anúncios e fotos dos produtos."
+            elif status == "EVITAR" and "Reduzir" in leitura:
+                rec_curta = "REVISAR CUSTOS"
+                acao_imediata = "Negociar com fornecedores ou buscar novos SKUs. Preço atual é barreira."
             else:
-                prioridade = "MÉDIA (MONITORAR)"
-                cor = "#00D4FF" # Azul claro
+                rec_curta = "MONITORAR"
+                acao_imediata = "Acompanhar movimentação dos concorrentes semanalmente."
 
-            # 1. Análise de Preço (Ticket)
+            # Detalhes das ações
             if leitura == "Ticket OK":
-                acoes.append(f"✅ **Preço Competitivo**: Seu ticket (R$ {ticket_cliente:,.2f}) está alinhado com o mercado (R$ {ticket_mercado:,.2f}).")
-                if status == "FOCO":
-                    acoes.append("🚀 **Ação**: Acelere o investimento em Ads (Publicidade) e garanta a profundidade de estoque.")
+                acoes.append(f"✅ **Preço Competitivo**: Alinhado com o mercado (R$ {ticket_mercado:,.2f}).")
             elif "Aumentar" in leitura:
-                diff = (ticket_mercado - ticket_cliente)
-                acoes.append(f"⚠️ **Preço Defasado**: Seu ticket está R$ {diff:,.2f} ABAIXO da média do mercado.")
-                acoes.append(f"💡 **Ação**: Você tem margem para subir o preço ou criar kits com maior valor agregado para aumentar o faturamento.")
+                acoes.append(f"⚠️ **Preço Defasado**: R$ {(ticket_mercado - ticket_cliente):,.2f} abaixo da média.")
             else:
-                diff = (ticket_cliente - ticket_mercado)
-                acoes.append(f"⚠️ **Preço Elevado**: Seu ticket está R$ {diff:,.2f} ACIMA da média do mercado.")
-                acoes.append(f"💡 **Ação**: Avalie se o seu produto tem diferenciais que justifiquem o preço. Caso contrário, considere promoções agressivas para ganhar relevância.")
+                acoes.append(f"⚠️ **Preço Elevado**: R$ {(ticket_cliente - ticket_mercado):,.2f} acima da média.")
 
-            # 2. Análise de Mercado
-            if mercado > 1_000_000:
-                acoes.append(f"💰 **Volume de Mercado**: Esta subcategoria movimenta R$ {mercado/1_000_000:.1f}M em 6 meses. É um oceano de oportunidades.")
+            acoes.append(f"🚀 **Ação Imediata**: {acao_imediata}")
             
-            # 3. Sugestão de Share e Crescimento
-            if status == "FOCO":
-                acoes.append("🎯 **Meta**: Foque em atingir pelo menos 1% de share nesta subcategoria nos próximos 90 dias. Acelere o crescimento!")
-                acoes.append("📈 **Estratégia**: Invista em campanhas de performance e otimização de SEO para dominar a subcategoria.")
-            elif status == "OK":
-                acoes.append("🚀 **Potencial**: Há bom potencial de crescimento. Busque aumentar seu share em 0.5% nos próximos 120 dias.")
-                acoes.append("💡 **Estratégia**: Considere parcerias estratégicas ou explore novos canais de aquisição de clientes.")
-            
-            # 4. Análise de Margem (se aplicável)
-            margem_cliente = self.cliente_data.get("margem", 0)
-            if margem_cliente < 0.10 and status != "EVITAR": # Margem abaixo de 10%
-                acoes.append("📉 **Margem Baixa**: Sua margem atual é inferior a 10%. Avalie a estrutura de custos ou o posicionamento de preço.")
-                acoes.append("🛠️ **Ação**: Negocie com fornecedores, otimize processos internos ou explore produtos com maior rentabilidade.")
-
-            # 5. Diversificação de Produtos (se relevante)
-            if status == "FOCO" and mercado > 5_000_000:
-                acoes.append("📦 **Mix de Produtos**: Dada a alta demanda, explore a expansão do seu mix de produtos dentro desta subcategoria para capturar mais mercado.")
-            
-            # 6. Ações de Upsell/Cross-sell
-            if status == "FOCO" or status == "OK":
-                acoes.append("🛒 **Upsell/Cross-sell**: Identifique produtos complementares para oferecer aos clientes desta subcategoria, aumentando o ticket médio e o LTV.")
-
             plano.append({
                 "Subcategoria": subcat,
-                "Prioridade": prioridade,
+                "Prioridade": "MÁXIMA" if status == "FOCO" else ("ALTA" if status == "OK" else "MÉDIA"),
+                "Cor": "#FF4B4B" if status == "FOCO" else ("#FFA421" if status == "OK" else "#1E3A8A"),
                 "Ações": acoes,
-                "Cor": cor,
+                "Recomendacao_Curta": rec_curta,
+                "Acao_Imediata": acao_imediata,
                 "Score": score
             })
             
