@@ -45,6 +45,10 @@ class MarketAnalyzer:
         if categoria not in self.mercado_categoria:
             self.mercado_categoria[categoria] = []
             
+        # Garantir tipos numéricos
+        faturamento = float(faturamento) if faturamento else 0.0
+        unidades = int(float(unidades)) if unidades else 0
+            
         ticket_medio = faturamento / unidades if unidades > 0 else 0
         self.mercado_categoria[categoria].append({
             'periodo': periodo,
@@ -57,6 +61,10 @@ class MarketAnalyzer:
         """Adiciona dados de mercado de subcategoria vinculada a uma categoria macro"""
         if categoria not in self.mercado_subcategorias:
             self.mercado_subcategorias[categoria] = []
+            
+        # Garantir tipos numéricos
+        faturamento_6m = float(faturamento_6m) if faturamento_6m else 0.0
+        unidades_6m = int(float(unidades_6m)) if unidades_6m else 0
             
         ticket_medio = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
         self.mercado_subcategorias[categoria].append({
@@ -241,8 +249,10 @@ class MarketAnalyzer:
             
             # Crescimento: (Receita Projetada / Faturamento Base) - 1
             crescimento_pct = 0
-            if faturamento_base_comparacao > 0:
-                crescimento_pct = ((receita_projetada / faturamento_base_comparacao) - 1) * 100
+            # Garantir que faturamento_base_comparacao seja float para evitar erro de tipo na divisão
+            fat_base_f = float(faturamento_base_comparacao)
+            if fat_base_f > 0:
+                crescimento_pct = ((float(receita_projetada) / fat_base_f) - 1) * 100
             elif receita_projetada > 0:
                 crescimento_pct = 100.0
 
@@ -302,18 +312,24 @@ class MarketAnalyzer:
         if categoria_nova in self.mercado_categoria:
             for item in self.mercado_categoria[categoria_nova]:
                 if item['periodo'] == periodo:
-                    item['faturamento'] = faturamento
-                    item['unidades'] = unidades
-                    item['ticket_medio'] = faturamento / unidades if unidades > 0 else 0
+                    # Garantir tipos numéricos
+                    f = float(faturamento) if faturamento else 0.0
+                    u = int(float(unidades)) if unidades else 0
+                    item['faturamento'] = f
+                    item['unidades'] = u
+                    item['ticket_medio'] = f / u if u > 0 else 0
 
     def editar_mercado_subcategoria(self, categoria, sub_antiga, sub_nova, faturamento_6m, unidades_6m):
         if categoria in self.mercado_subcategorias:
             for sub in self.mercado_subcategorias[categoria]:
                 if sub['subcategoria'] == sub_antiga:
+                    # Garantir tipos numéricos
+                    f = float(faturamento_6m) if faturamento_6m else 0.0
+                    u = int(float(unidades_6m)) if unidades_6m else 0
                     sub['subcategoria'] = sub_nova
-                    sub['faturamento_6m'] = faturamento_6m
-                    sub['unidades_6m'] = unidades_6m
-                    sub['ticket_medio'] = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
+                    sub['faturamento_6m'] = f
+                    sub['unidades_6m'] = u
+                    sub['ticket_medio'] = f / u if u > 0 else 0
 
     def calcular_tendencia(self, categoria: str) -> Dict:
         """Calcula a tendência de crescimento e faz projeção mensal para os próximos 3 meses"""

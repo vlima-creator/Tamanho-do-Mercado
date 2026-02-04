@@ -92,14 +92,20 @@ class PDFReportGenerator(FPDF):
         intro = f"Análise estratégica detalhada para {empresa}, focada no segmento de {subcategoria} ({categoria}). Este documento sintetiza oportunidades, projeções e ações recomendadas com base em dados reais de mercado."
         self.multi_cell(0, 6, self.clean_text(intro))
         self.ln(5)
-
+        
         # Cards de KPI
         curr_y = self.get_y()
-        tm = f"R$ {self.format_br(self.cliente_data.get('ticket_medio', 0))}"
-        mg = f"{self.cliente_data.get('margem', 0)*100:.1f}%"
+        
+        # Garantir valores numéricos para os cálculos
+        ticket_medio = float(self.cliente_data.get('ticket_medio', 0))
+        margem = float(self.cliente_data.get('margem', 0))
+        
+        tm = f"R$ {self.format_br(ticket_medio)}"
+        mg = f"{margem*100:.1f}%"
         
         tendencia_res = self.analyzer.calcular_tendencia(self.cat_foco)
-        cresc = f"{tendencia_res.get('crescimento_mensal', 0):+.1f}% /mês"
+        cresc_val = float(tendencia_res.get('crescimento_mensal', 0))
+        cresc = f"{cresc_val:+.1f}% /mês"
         
         conf = self.analyzer.calcular_confianca(self.cat_foco, self.sub_foco)
         conf_val = f"{conf['score']}% ({conf['nivel']})"
@@ -248,13 +254,16 @@ class PDFReportGenerator(FPDF):
     def add_demand_projection(self):
         self.section_title("4. Projeção de Demanda (90 dias)")
         tendencia_res = self.analyzer.calcular_tendencia(self.cat_foco)
-        valores = tendencia_res.get("mensal", [0, 0, 0])
+        valores_raw = tendencia_res.get("mensal", [0, 0, 0])
+        # Garantir que todos os valores sejam float
+        valores = [float(v) for v in valores_raw]
         
         self.set_font("Helvetica", "", 10)
-        self.cell(0, 8, self.clean_text(f"Tendência identificada: {tendencia_res['tendencia']} ({tendencia_res['crescimento_mensal']:.1f}% ao mês)"), 0, 1)
+        cresc_mensal = float(tendencia_res.get('crescimento_mensal', 0))
+        self.cell(0, 8, self.clean_text(f"Tendência identificada: {tendencia_res['tendencia']} ({cresc_mensal:+.1f}% ao mês)"), 0, 1)
         
         # Mini gráfico/tabela de barras horizontal
-        max_val = max(valores) if max(valores) > 0 else 1
+        max_val = max(valores) if valores and max(valores) > 0 else 1
         meses = ["Mês 1", "Mês 2", "Mês 3"]
         
         for i, val in enumerate(valores):
