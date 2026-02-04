@@ -123,58 +123,90 @@ class PDFReportGenerator(FPDF):
         
         curr_y = self.get_y()
         
-        # Layout Lado a Lado
-        # 2.1. Score de Oportunidade
+        # 2.1. Score de Oportunidade (Design Premium)
+        score = float(self.row_foco.get('Score', 0))
+        status = self.row_foco.get('Status', 'N/A')
+        
+        # Background do Card do Score
+        self.set_fill_color(250, 250, 250)
+        self.rect(10, curr_y, 90, 55, 'F')
+        self.set_draw_color(230, 230, 230)
+        self.rect(10, curr_y, 90, 55, 'D')
+        
+        self.set_xy(10, curr_y + 5)
         self.set_font("Helvetica", "B", 10)
-        self.cell(95, 8, "2.1. Score de Oportunidade", 0, 0, "C")
+        self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
+        self.cell(90, 8, "SCORE DE OPORTUNIDADE", 0, 1, "C")
         
-        # 2.2. Comparação de Tickets
-        self.set_x(110)
-        self.cell(95, 8, "2.2. Comparação de Tickets", 0, 1, "C")
+        # Grande número do Score
+        self.set_font("Helvetica", "B", 32)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+        self.cell(90, 15, f"{score:.2f}", 0, 1, "C")
         
-        img_y = self.get_y()
+        # Barra de Progresso Colorida (Gauge Simulado)
+        bar_x, bar_y, bar_w, bar_h = 20, curr_y + 32, 70, 4
+        self.set_fill_color(230, 230, 230)
+        self.rect(bar_x, bar_y, bar_w, bar_h, 'F') # Fundo da barra
         
-        # Renderização do Score (Imagem ou Fallback Visual)
-        if 'score_gauge' in self.chart_images:
-            import io
-            img_data = io.BytesIO(self.chart_images['score_gauge'])
-            self.image(img_data, x=10, y=img_y, w=90)
-        else:
-            # Fallback Visual para o Score
-            score = self.row_foco.get('Score', 0)
-            status = self.row_foco.get('Status', 'N/A')
-            self.set_xy(10, img_y + 10)
-            self.set_fill_color(240, 240, 240)
-            self.rect(10, img_y, 90, 50, 'F')
-            self.set_xy(10, img_y + 15)
-            self.set_font("Helvetica", "B", 24)
-            self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
-            self.cell(90, 15, f"{score:.2f}", 0, 1, "C")
-            self.set_font("Helvetica", "B", 12)
-            self.cell(90, 10, f"STATUS: {status}", 0, 1, "C")
-            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
-
-        # Renderização do Ticket (Imagem ou Fallback Visual)
-        if 'ticket_comp' in self.chart_images:
-            import io
-            img_data = io.BytesIO(self.chart_images['ticket_comp'])
-            self.image(img_data, x=110, y=img_y, w=90)
-        else:
-            # Fallback Visual para o Ticket
-            tk_cliente = self.row_foco.get('Ticket Cliente', 0)
-            tk_mercado = self.row_foco.get('Ticket Mercado', 0)
-            self.set_xy(110, img_y)
-            self.set_fill_color(240, 240, 240)
-            self.rect(110, img_y, 90, 50, 'F')
-            self.set_xy(110, img_y + 10)
-            self.set_font("Helvetica", "", 9)
-            self.cell(90, 8, f"Seu Ticket: R$ {self.format_br(tk_cliente)}", 0, 1, "C")
-            self.cell(90, 8, f"Ticket Mercado: R$ {self.format_br(tk_mercado)}", 0, 1, "C")
-            diff = ((tk_cliente / tk_mercado) - 1) * 100 if tk_mercado > 0 else 0
-            self.set_font("Helvetica", "B", 10)
-            self.cell(90, 10, f"Diferença: {diff:+.1f}%", 0, 1, "C")
+        # Cor baseada no status
+        if status == "FOCO": color = (30, 58, 138) # Azul Noite
+        elif status == "OK": color = (59, 130, 246) # Azul Claro
+        else: color = (156, 163, 175) # Cinza
+        
+        self.set_fill_color(color[0], color[1], color[2])
+        fill_w = (score / 10.0) * bar_w
+        self.rect(bar_x, bar_y, fill_w, bar_h, 'F') # Preenchimento
+        
+        self.set_xy(10, curr_y + 42)
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(color[0], color[1], color[2])
+        self.cell(90, 8, f"STATUS: {status}", 0, 1, "C")
+        
+        # 2.2. Comparação de Tickets (Design Premium)
+        tk_cliente = float(self.row_foco.get('Ticket Cliente', 0))
+        tk_mercado = float(self.row_foco.get('Ticket Mercado', 0))
+        diff = ((tk_cliente / tk_mercado) - 1) * 100 if tk_mercado > 0 else 0
+        
+        # Background do Card do Ticket
+        self.set_fill_color(250, 250, 250)
+        self.rect(110, curr_y, 90, 55, 'F')
+        self.set_draw_color(230, 230, 230)
+        self.rect(110, curr_y, 90, 55, 'D')
+        
+        self.set_xy(110, curr_y + 5)
+        self.set_font("Helvetica", "B", 10)
+        self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
+        self.cell(90, 8, "COMPARAÇÃO DE TICKETS", 0, 1, "C")
+        
+        # Comparativo Visual (Infográfico)
+        self.set_xy(115, curr_y + 15)
+        self.set_font("Helvetica", "", 9)
+        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
+        self.cell(40, 8, "Seu Ticket:", 0, 0, "L")
+        self.set_font("Helvetica", "B", 10)
+        self.cell(40, 8, f"R$ {self.format_br(tk_cliente)}", 0, 1, "R")
+        
+        self.set_x(115)
+        self.set_font("Helvetica", "", 9)
+        self.cell(40, 8, "Ticket Mercado:", 0, 0, "L")
+        self.set_font("Helvetica", "B", 10)
+        self.cell(40, 8, f"R$ {self.format_br(tk_mercado)}", 0, 1, "R")
+        
+        # Linha de Separação
+        self.line(120, curr_y + 32, 190, curr_y + 32)
+        
+        self.set_xy(110, curr_y + 35)
+        self.set_font("Helvetica", "B", 12)
+        diff_color = (220, 38, 38) if abs(diff) > 20 else (5, 150, 105)
+        self.set_text_color(diff_color[0], diff_color[1], diff_color[2])
+        self.cell(90, 10, f"{diff:+.1f}% vs Mercado", 0, 1, "C")
+        
+        self.set_font("Helvetica", "I", 8)
+        self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
+        posicao = "Acima" if diff > 0 else "Abaixo"
+        self.cell(90, 5, f"Sua precificação está {posicao} da média", 0, 1, "C")
             
-        self.set_y(img_y + 55)
+        self.set_y(curr_y + 60)
         self.ln(5)
 
     def add_market_opportunities(self):
