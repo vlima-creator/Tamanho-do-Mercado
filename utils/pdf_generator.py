@@ -19,21 +19,21 @@ class PDFReportGenerator(FPDF):
         self.text_color = (31, 41, 55)        # Cinza escuro para texto
         self.light_text = (107, 114, 128)     # Cinza médio para detalhes
         
-        self.set_text_color(*self.text_color)
+        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
 
     def header(self):
         # Barra superior decorativa
-        self.set_fill_color(*self.primary_color)
+        self.set_fill_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
         self.rect(0, 0, 210, 15, 'F')
         
         if self.page_no() == 1:
             self.set_y(20)
             self.set_font("Helvetica", "B", 22)
-            self.set_text_color(*self.primary_color)
+            self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
             self.cell(0, 15, "Relatório de Inteligência de Mercado", 0, 1, "L")
             
             self.set_font("Helvetica", "", 10)
-            self.set_text_color(*self.light_text)
+            self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
             data_str = datetime.now().strftime("%d/%m/%Y")
             self.cell(0, 5, f"Gerado em: {data_str} | Análise Estratégica Exclusiva", 0, 1, "L")
             
@@ -44,41 +44,41 @@ class PDFReportGenerator(FPDF):
         else:
             self.set_y(20)
             self.set_font("Helvetica", "I", 8)
-            self.set_text_color(*self.light_text)
+            self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
             self.cell(0, 10, "Relatório Executivo - Inteligência de Mercado", 0, 0, "R")
             self.ln(10)
 
     def footer(self):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
-        self.set_text_color(*self.light_text)
+        self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
         self.cell(0, 10, f"Página {self.page_no()}/{{nb}}", 0, 0, "C")
 
     def section_title(self, title):
         self.ln(5)
         self.set_font("Helvetica", "B", 14)
-        self.set_text_color(*self.primary_color)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
         self.cell(0, 10, self.clean_text(title.upper()), 0, 1, "L")
         # Linha de destaque abaixo do título
-        self.set_draw_color(*self.accent_color)
+        self.set_draw_color(self.accent_color[0], self.accent_color[1], self.accent_color[2])
         self.set_line_width(0.5)
         self.line(self.get_x(), self.get_y(), self.get_x() + 20, self.get_y())
         self.ln(5)
-        self.set_text_color(*self.text_color)
+        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
 
     def draw_card(self, title, value, x, y, w, h, color=None):
         if not color: color = self.secondary_color
-        self.set_fill_color(*color)
+        self.set_fill_color(color[0], color[1], color[2])
         self.rect(x, y, w, h, 'F')
         
         self.set_xy(x + 2, y + 2)
         self.set_font("Helvetica", "", 8)
-        self.set_text_color(*self.light_text)
+        self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
         self.cell(w-4, 5, self.clean_text(title), 0, 1, "L")
         
         self.set_x(x + 2)
         self.set_font("Helvetica", "B", 11)
-        self.set_text_color(*self.primary_color)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
         self.cell(w-4, 7, self.clean_text(value), 0, 1, "L")
 
     def add_summary(self):
@@ -119,7 +119,7 @@ class PDFReportGenerator(FPDF):
         df_foco_ok = df_ranking[df_ranking["Status"].isin(["FOCO", "OK"])].sort_values(by="Score", ascending=False).head(5)
         
         # Cabeçalho da Tabela Estilizada
-        self.set_fill_color(*self.primary_color)
+        self.set_fill_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
         self.set_text_color(255, 255, 255)
         self.set_font("Helvetica", "B", 10)
         
@@ -128,12 +128,12 @@ class PDFReportGenerator(FPDF):
         self.cell(30, 10, " SCORE", 0, 0, 'C', True)
         self.cell(40, 10, " STATUS", 0, 1, 'C', True)
         
-        self.set_text_color(*self.text_color)
+        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
         self.set_font("Helvetica", "", 9)
         
         fill = False
         for _, row in df_foco_ok.iterrows():
-            self.set_fill_color(*self.secondary_color)
+            self.set_fill_color(self.secondary_color[0], self.secondary_color[1], self.secondary_color[2])
             self.cell(80, 8, f" {self.clean_text(str(row['Subcategoria'])[:40])}", 0, 0, 'L', fill)
             self.cell(40, 8, f"R$ {self.format_br(row['Mercado (R$)'])}", 0, 0, 'C', fill)
             self.cell(30, 8, f"{row['Score']:.2f}", 0, 0, 'C', fill)
@@ -144,7 +144,7 @@ class PDFReportGenerator(FPDF):
             elif status == "OK": self.set_text_color(5, 150, 105)
             
             self.cell(40, 8, status, 0, 1, 'C', fill)
-            self.set_text_color(*self.text_color)
+            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
             fill = not fill
         self.ln(5)
 
@@ -164,12 +164,12 @@ class PDFReportGenerator(FPDF):
         self.cell(50, 10, " LUCRO ESTIMADO", 0, 0, 'C', True)
         self.cell(50, 10, " CRESCIMENTO", 0, 1, 'C', True)
         
-        self.set_text_color(*self.text_color)
+        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
         self.set_font("Helvetica", "", 9)
         
         fill = False
         for _, row in df.iterrows():
-            self.set_fill_color(*self.secondary_color)
+            self.set_fill_color(self.secondary_color[0], self.secondary_color[1], self.secondary_color[2])
             self.cell(40, 8, f" {self.clean_text(row['Cenário'])}", 0, 0, 'L', fill)
             self.cell(50, 8, f"R$ {self.format_br(row['Receita Projetada 6M'])}", 0, 0, 'C', fill)
             self.cell(50, 8, f"R$ {self.format_br(row['Lucro Projetado 6M'])}", 0, 0, 'C', fill)
@@ -179,13 +179,13 @@ class PDFReportGenerator(FPDF):
             else: self.set_text_color(220, 38, 38)
             
             self.cell(50, 8, f"{cresc:+.1f}%", 0, 1, 'C', fill)
-            self.set_text_color(*self.text_color)
+            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
             fill = not fill
             
         # Box de Insight
         self.ln(4)
         self.set_fill_color(239, 246, 255)
-        self.set_draw_color(*self.accent_color)
+        self.set_draw_color(self.accent_color[0], self.accent_color[1], self.accent_color[2])
         self.set_font("Helvetica", "B", 10)
         self.cell(0, 8, "  INSIGHT ESTRATÉGICO", "L", 1, "L", True)
         self.set_font("Helvetica", "", 9)
@@ -217,23 +217,23 @@ class PDFReportGenerator(FPDF):
         
         for i, val in enumerate(valores):
             self.set_font("Helvetica", "B", 9)
-            self.set_text_color(*self.light_text)
+            self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
             self.cell(20, 8, meses[i], 0, 0)
             
             # Barra
             width = (val / max_val) * 120
-            self.set_fill_color(*self.accent_color)
+            self.set_fill_color(self.accent_color[0], self.accent_color[1], self.accent_color[2])
             self.rect(35, self.get_y() + 2, width, 4, 'F')
             
             self.set_x(160)
-            self.set_text_color(*self.primary_color)
+            self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
             self.cell(30, 8, f"R$ {self.format_br(val)}", 0, 1, "R")
         
         self.ln(5)
         self.set_font("Helvetica", "B", 11)
-        self.set_text_color(*self.primary_color)
+        self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
         self.cell(0, 10, f"TOTAL PROJETADO: R$ {self.format_br(tendencia_res['projecao_3m'])}", 0, 1, "R")
-        self.set_text_color(*self.text_color)
+        self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
 
     def add_action_plan(self):
         self.section_title("5. Plano de Ação Estratégico")
@@ -256,12 +256,12 @@ class PDFReportGenerator(FPDF):
             acao_limpa = self.clean_text(acao_limpa)
             
             # Bullet point estilizado
-            self.set_text_color(*self.accent_color)
+            self.set_text_color(self.accent_color[0], self.accent_color[1], self.accent_color[2])
             self.set_font("Helvetica", "B", 12)
             self.set_x(12)
             self.cell(5, 6, ">", 0, 0)
             
-            self.set_text_color(*self.text_color)
+            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
             self.set_font("Helvetica", "", 10)
             self.multi_cell(0, 6, acao_limpa)
             self.ln(2)
