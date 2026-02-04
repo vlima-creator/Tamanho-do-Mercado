@@ -34,7 +34,7 @@ st.set_page_config(
     page_title="Dashboard - Inteligência de Mercado",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 # --- FUNÇÕES UTILITÁRIAS ---
@@ -270,10 +270,25 @@ st.markdown("""
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
     
-    /* Esconder elementos indesejados no topo da sidebar */
-    [data-testid="stSidebarNav"]::before {
-        content: "";
-        display: none;
+    /* Esconder elementos indesejados no topo da sidebar e textos de ícones */
+    [data-testid="stSidebarNav"]::before, 
+    [data-testid="stSidebarNav"] {
+        padding-top: 0px !important;
+    }
+    
+    /* Esconder especificamente o texto problemático se ele aparecer como conteúdo */
+    div[data-testid="stSidebarNav"] span, 
+    div[data-testid="stSidebarNav"] div {
+        color: transparent !important;
+        text-indent: -9999px !important;
+        height: 0px !important;
+        display: none !important;
+    }
+    
+    /* Restaurar a visibilidade apenas dos itens reais do menu se necessário, 
+       mas como estamos usando rádio customizado, vamos garantir que a navegação padrão suma */
+    [data-testid="stSidebarNav"] {
+        display: none !important;
     }
     
     /* Botões Minimalistas */
