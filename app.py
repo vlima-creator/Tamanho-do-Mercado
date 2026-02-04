@@ -554,19 +554,28 @@ with st.sidebar:
                         # Gerar imagens dos gráficos para o PDF
                         chart_images = {}
                         try:
+                            import io
+                            from PIL import Image
+                            
                             # 1. Gauge Score
                             fig_gauge = criar_gauge_score(row_foco_pdf['Score'], row_foco_pdf['Status'])
-                            # Forçar motor kaleido explicitamente
-                            chart_images['score_gauge'] = fig_gauge.to_image(format="png", engine="kaleido", width=600, height=400, scale=2)
+                            # Tentativa 1: Kaleido
+                            try:
+                                chart_images['score_gauge'] = fig_gauge.to_image(format="png", engine="kaleido", width=600, height=400, scale=2)
+                            except:
+                                # Fallback: Se kaleido falhar, não geramos erro, o PDF tratará a ausência
+                                pass
                             
                             # 2. Comparação de Tickets
                             r_perm = current_analyzer.cliente_data.get('range_permitido', 0.20)
                             res_sim = current_analyzer.simular_cenarios(cat_foco, sub_foco)
                             l_inf, l_sup = calcular_limites_ticket_local(res_sim['ticket_mercado'], r_perm)
                             fig_ticket = criar_comparacao_tickets(res_sim['ticket_mercado'], row_foco_pdf['Ticket Cliente'], l_inf, l_sup)
-                            chart_images['ticket_comp'] = fig_ticket.to_image(format="png", engine="kaleido", width=600, height=400, scale=2)
+                            try:
+                                chart_images['ticket_comp'] = fig_ticket.to_image(format="png", engine="kaleido", width=600, height=400, scale=2)
+                            except:
+                                pass
                         except Exception as img_err:
-                            # Se o kaleido falhar, tentamos uma abordagem sem imagens para não travar o PDF
                             st.warning(f"Aviso: Os gráficos serão exibidos apenas como texto no PDF devido a uma limitação técnica temporária.")
                             chart_images = {}
 

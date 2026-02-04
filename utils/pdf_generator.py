@@ -119,40 +119,62 @@ class PDFReportGenerator(FPDF):
         self.set_y(curr_y + 25)
 
     def add_market_share_indicators(self):
-        if not self.chart_images:
-            return
-            
         self.section_title("2. Indicadores de Market Share")
         
-        # Inserir imagens dos gráficos
         curr_y = self.get_y()
         
-        # Gráfico 1: Score (Gauge)
-        if 'score_gauge' in self.chart_images:
-            self.set_font("Helvetica", "B", 10)
-            self.cell(95, 8, "2.1. Score de Oportunidade", 0, 0, "C")
-            
-        # Gráfico 2: Tickets
-        if 'ticket_comp' in self.chart_images:
-            self.set_x(110)
-            self.cell(95, 8, "2.2. Comparação de Tickets", 0, 1, "C")
-        else:
-            self.ln(8)
-            
+        # Layout Lado a Lado
+        # 2.1. Score de Oportunidade
+        self.set_font("Helvetica", "B", 10)
+        self.cell(95, 8, "2.1. Score de Oportunidade", 0, 0, "C")
+        
+        # 2.2. Comparação de Tickets
+        self.set_x(110)
+        self.cell(95, 8, "2.2. Comparação de Tickets", 0, 1, "C")
+        
         img_y = self.get_y()
         
+        # Renderização do Score (Imagem ou Fallback Visual)
         if 'score_gauge' in self.chart_images:
-            # Tentar carregar a imagem dos bytes
             import io
             img_data = io.BytesIO(self.chart_images['score_gauge'])
             self.image(img_data, x=10, y=img_y, w=90)
-            
+        else:
+            # Fallback Visual para o Score
+            score = self.row_foco.get('Score', 0)
+            status = self.row_foco.get('Status', 'N/A')
+            self.set_xy(10, img_y + 10)
+            self.set_fill_color(240, 240, 240)
+            self.rect(10, img_y, 90, 50, 'F')
+            self.set_xy(10, img_y + 15)
+            self.set_font("Helvetica", "B", 24)
+            self.set_text_color(self.primary_color[0], self.primary_color[1], self.primary_color[2])
+            self.cell(90, 15, f"{score:.2f}", 0, 1, "C")
+            self.set_font("Helvetica", "B", 12)
+            self.cell(90, 10, f"STATUS: {status}", 0, 1, "C")
+            self.set_text_color(self.text_color[0], self.text_color[1], self.text_color[2])
+
+        # Renderização do Ticket (Imagem ou Fallback Visual)
         if 'ticket_comp' in self.chart_images:
             import io
             img_data = io.BytesIO(self.chart_images['ticket_comp'])
             self.image(img_data, x=110, y=img_y, w=90)
+        else:
+            # Fallback Visual para o Ticket
+            tk_cliente = self.row_foco.get('Ticket Cliente', 0)
+            tk_mercado = self.row_foco.get('Ticket Mercado', 0)
+            self.set_xy(110, img_y)
+            self.set_fill_color(240, 240, 240)
+            self.rect(110, img_y, 90, 50, 'F')
+            self.set_xy(110, img_y + 10)
+            self.set_font("Helvetica", "", 9)
+            self.cell(90, 8, f"Seu Ticket: R$ {self.format_br(tk_cliente)}", 0, 1, "C")
+            self.cell(90, 8, f"Ticket Mercado: R$ {self.format_br(tk_mercado)}", 0, 1, "C")
+            diff = ((tk_cliente / tk_mercado) - 1) * 100 if tk_mercado > 0 else 0
+            self.set_font("Helvetica", "B", 10)
+            self.cell(90, 10, f"Diferença: {diff:+.1f}%", 0, 1, "C")
             
-        self.set_y(img_y + 65) # Espaço para os gráficos
+        self.set_y(img_y + 55)
         self.ln(5)
 
     def add_market_opportunities(self):
