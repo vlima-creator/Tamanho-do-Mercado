@@ -276,7 +276,8 @@ with st.sidebar:
                             if not df_ranking_completo.empty:
                                 row_foco = df_ranking_completo[df_ranking_completo["Subcategoria"] == sub_foco].iloc[0].to_dict()
 
-                pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, cat_foco, sub_foco, row_foco)
+                # Usar os valores do session_state para garantir que o PDF reflita a seleção do dashboard
+                pdf = PDFReportGenerator(current_analyzer, current_analyzer.cliente_data, st.session_state.get("selected_macro_cat", ""), st.session_state.get("selected_sub_cat_foco", ""), row_foco)
                 pdf_file_path = "relatorio_executivo.pdf"
                 pdf.generate_report(pdf_file_path)
 
@@ -586,8 +587,13 @@ elif menu == "📊 Dashboard Executivo":
             st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True)
             
         st.markdown("---")
-        sub_foco = st.selectbox("Análise Detalhada da Subcategoria:", df_ranking['Subcategoria'].tolist())
-        row_foco = df_ranking[df_ranking['Subcategoria'] == sub_foco].iloc[0]
+        # Garantir que a subcategoria selecionada seja salva no session_state
+        sub_foco_dashboard = st.selectbox("Análise Detalhada da Subcategoria:", df_ranking["Subcategoria"].tolist(), key="dashboard_sub_foco_selector")
+        st.session_state["selected_sub_cat_foco"] = sub_foco_dashboard
+        
+        # Encontrar a categoria macro correspondente à subcategoria selecionada
+        row_foco = df_ranking[df_ranking["Subcategoria"] == sub_foco_dashboard].iloc[0]
+        st.session_state["selected_macro_cat"] = row_foco["Categoria Macro"]
         
         # Seção de Simulação Interativa
         st.markdown("### 💰 Simulação de Cenários")

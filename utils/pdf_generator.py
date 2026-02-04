@@ -39,10 +39,22 @@ class PDFReportGenerator(FPDF):
         self.chapter_title("1. Sumario Executivo")
         empresa = self.cliente_data.get("empresa", "[Nome da Empresa]")
         # Usar self.cat_foco e self.sub_foco que são passados no construtor
+              # Usar self.cat_foco e self.sub_foco que são passados no construtor
         categoria_display = self.cat_foco if self.cat_foco else "N/A"
         subcategoria_display = self.sub_foco if self.sub_foco else "N/A"
         
-        self.chapter_body(f"Este relatorio apresenta uma analise de inteligencia de mercado para a empresa {empresa}, focando na categoria {categoria_display} e subcategoria {subcategoria_display}.\n\n")
+        # Obter dados do cliente
+        ticket_medio_cliente = self.cliente_data.get("ticket_medio", 0.0)
+        margem_cliente = self.cliente_data.get("margem", 0.0) * 100
+
+        # Obter tendência de crescimento mensal
+        tendencia_res = self.analyzer.calcular_tendencia(self.cat_foco)
+        crescimento_mensal = tendencia_res.get("crescimento_mensal", 0.0)
+
+        summary_text = f"Este relatório apresenta uma análise de inteligência de mercado para a empresa **{empresa}**, focando na categoria **{categoria_display}** e subcategoria **{subcategoria_display}**.\n"
+        summary_text += f"Seu ticket médio atual é de **R$ {self.format_br(ticket_medio_cliente)}** e sua margem atual é de **{margem_cliente:.1f}%**.\n"
+        summary_text += f"Com base na análise de mercado, a categoria apresenta uma tendência de crescimento de **{crescimento_mensal:+.1f}% ao mês**.\n\n"
+        self.chapter_body(summary_text)
         
         # Índice de Confiança
         confianca = self.analyzer.calcular_confianca(self.cat_foco, self.sub_foco)
@@ -65,27 +77,61 @@ class PDFReportGenerator(FPDF):
             self.chapter_body("Nenhuma oportunidade de mercado encontrada.")
             return
 
-        # Filtrar para as subcategorias de FOCO ou OK
-        df_oportunidades = df_ranking[df_ranking['Status'].isin(['FOCO', 'OK'])].head(5)
+        # Separar oportunidades (FOCO/OK) de categorias a evitar (EVITAR)
+        df_foco_ok = df_ranking[df_ranking["Status"].isin(["FOCO", "OK"])].sort_values(by="Score", ascending=False)
+        df_evitar = df_ranking[df_ranking["Status"] == "EVITAR"].sort_values(by="Score", ascending=True)
 
-        if df_oportunidades.empty:
-            self.chapter_body("Nenhuma oportunidade de mercado relevante encontrada para as subcategorias analisadas.")
-            return
-
-        self.set_font("Helvetica", "B", 11)
-        self.cell(60, 10, "Subcategoria", 1)
-        self.cell(40, 10, "Faturamento 6M", 1)
-        self.cell(30, 10, "Score", 1)
-        self.cell(40, 10, "Status", 1)
-        self.ln()
-        
+        # 2.1. Melhores Oportunidades
+        self.set_font("Helvetica", "B", 12)
+        self.cell(0, 8, "2.1. Melhores Oportunidades (Foco e OK)", 0, 1)
         self.set_font("Helvetica", "", 10)
-        for _, row in df_oportunidades.iterrows():
-            self.cell(60, 8, str(row['Subcategoria'])[:30], 1)
-            self.cell(40, 8, f"R$ {self.format_br(row['Mercado (R$)'])}", 1)
-            self.cell(30, 8, f"{row['Score']:.2f}", 1)
-            self.cell(40, 8, row['Status'], 1)
+
+        if df_foco_ok.empty:
+            self.chapter_body("Nenhuma subcategoria com status FOCO ou OK encontrada.")
+        else:
+            # Destacar a melhor oportunidade
+            melhor_oportunidade = df_foco_ok.iloc[0]
+            self.chapter_body(f"A **melhor oportunidade** no momento é a subcategoria **{melhor_oportunidade["Subcategoria"]}** na categoria **{melhor_oportunidade["Categoria Macro"]}**, com Score de **{melhor_oportunidade["Score"]:.2f}** e status **{melhor_oportunidade["Status"]}**.\n")
+
+            self.set_font("Helvetica", "B", 11)
+            self.cell(60, 10, "Subcategoria", 1)
+            self.cell(40, 10, "Faturamento 6M", 1)
+            self.cell(30, 10, "Score", 1)
+            self.cell(40, 10, "Status", 1)
             self.ln()
+            
+            self.set_font("Helvetica", "", 10)
+            for _, row in df_foco_ok.head(5).iterrows(): # Exibir top 5 oportunidades
+                self.cell(60, 8, str(row["Subcategoria"])[:30], 1)
+                self.cell(40, 8, f"R$ {self.format_br(row["Mercado (R$)"])}", 1)
+                self.cell(30, 8, f"{row["Score"]:.2f}", 1)
+                self.cell(40, 8, row["Status"], 1)
+                self.ln()
+        self.ln(5)
+
+        # 2.2. Categorias a Monitorar/Evitar
+        self.set_font("Helvetica", "B", 12)
+        self.cell(0, 8, "2.2. Categorias a Monitorar/Evitar", 0, 1)
+        self.set_font("Helvetica", "", 10)
+
+        if df_evitar.empty:
+            self.chapter_body("Nenhuma subcategoria com status EVITAR encontrada.")
+        else:
+            self.chapter_body("As seguintes subcategorias exigem cautela ou devem ser evitadas no momento:\n")
+            self.set_font("Helvetica", "B", 11)
+            self.cell(60, 10, "Subcategoria", 1)
+            self.cell(40, 10, "Faturamento 6M", 1)
+            self.cell(30, 10, "Score", 1)
+            self.cell(40, 10, "Status", 1)
+            self.ln()
+            
+            self.set_font("Helvetica", "", 10)
+            for _, row in df_evitar.head(5).iterrows(): # Exibir top 5 a evitar
+                self.cell(60, 8, str(row["Subcategoria"])[:30], 1)
+                self.cell(40, 8, f"R$ {self.format_br(row["Mercado (R$)"])}", 1)
+                self.cell(30, 8, f"{row["Score"]:.2f}", 1)
+                self.cell(40, 8, row["Status"], 1)
+                self.ln()
         self.ln(5)
 
     def add_growth_scenarios(self):
@@ -126,6 +172,42 @@ class PDFReportGenerator(FPDF):
             if pd.isna(crescimento_pct): crescimento_pct = 0.0
             self.cell(40, 8, f"{crescimento_pct:.1f}%", 1)
             self.ln()
+        self.ln(5)
+
+        # Insights do Consultor para Cenários de Crescimento
+        self.set_font("Helvetica", "B", 12)
+        self.cell(0, 8, "Insights do Consultor:", 0, 1)
+        self.set_font("Helvetica", "", 10)
+
+        insight_text = ""
+        # Obter dados do cenário provável para insights
+        cenario_provavel = scenarios_df[scenarios_df["Cenário"] == "Provável"].iloc[0]
+        crescimento_provavel = cenario_provavel["Crescimento (%)"]
+        delta_provavel = cenario_provavel["Delta vs Atual"]
+
+        ticket_cliente = self.cliente_data.get("ticket_custom") or self.cliente_data.get("ticket_medio", 0)
+        ticket_mercado = res_simulacao.get("ticket_mercado", 0)
+        margem_cliente = self.cliente_data.get("margem", 0)
+
+        if crescimento_provavel > 10:
+            insight_text += "• O cenário provável indica um crescimento robusto. Considere investir em marketing e otimização de funil para capturar essa demanda.\n"
+        elif crescimento_provavel < 0:
+            insight_text += "• O cenário provável aponta para uma retração. É crucial revisar a estratégia de precificação, custos ou buscar diferenciação para reverter a tendência.\n"
+        else:
+            insight_text += "• O crescimento é moderado. Foco em otimização de conversão e fidelização de clientes para maximizar o lucro.\n"
+
+        if ticket_cliente < ticket_mercado * (1 - self.cliente_data.get("range_permitido", 0.20)):
+            insight_text += f"• Seu ticket médio (R$ {self.format_br(ticket_cliente)}) está abaixo do mercado (R$ {self.format_br(ticket_mercado)}). Há espaço para aumentar o preço ou criar ofertas de maior valor agregado.\n"
+        elif ticket_cliente > ticket_mercado * (1 + self.cliente_data.get("range_permitido", 0.20)):
+            insight_text += f"• Seu ticket médio (R$ {self.format_br(ticket_cliente)}) está acima do mercado (R$ {self.format_br(ticket_mercado)}). Avalie a percepção de valor do seu produto e a competitividade.\n"
+
+        if margem_cliente < 0.10: # Exemplo: margem abaixo de 10%
+            insight_text += "• Sua margem atual é baixa. Explore a negociação com fornecedores ou a otimização de custos operacionais para melhorar a lucratividade.\n"
+
+        if not insight_text:
+            insight_text = "Nenhum insight específico gerado para os cenários atuais. Continue monitorando o mercado e ajustando suas estratégias."
+        
+        self.multi_cell(0, 6, insight_text)
         self.ln(5)
 
     def add_demand_projection(self):
@@ -197,8 +279,7 @@ class PDFReportGenerator(FPDF):
             # Remover markdown bold e limpar caracteres especiais
             acao_limpa = acao.replace("**", "")
             acao_limpa = self.clean_text(acao_limpa)
-            # Usar largura fixa para evitar erro de espaço horizontal
-            self.multi_cell(180, 6, f"* {acao_limpa}", border=0, align='L')
+            # Usar largura fixa para evitar erro de espaço horizontal            self.multi_cell(170, 6, f"* {acao_limpa}", border=0, align=\'L\') # Reduzindo a largura para evitar cortes
         self.ln(5)
 
     def format_br(self, value):

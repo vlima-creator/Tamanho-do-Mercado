@@ -404,9 +404,27 @@ class MarketAnalyzer:
             if mercado > 1_000_000:
                 acoes.append(f"💰 **Volume de Mercado**: Esta subcategoria movimenta R$ {mercado/1_000_000:.1f}M em 6 meses. É um oceano de oportunidades.")
             
-            # 3. Sugestão de Share
+            # 3. Sugestão de Share e Crescimento
             if status == "FOCO":
-                acoes.append("🎯 **Meta**: Foque em atingir pelo menos 1% de share nesta subcategoria nos próximos 90 dias.")
+                acoes.append("🎯 **Meta**: Foque em atingir pelo menos 1% de share nesta subcategoria nos próximos 90 dias. Acelere o crescimento!")
+                acoes.append("📈 **Estratégia**: Invista em campanhas de performance e otimização de SEO para dominar a subcategoria.")
+            elif status == "OK":
+                acoes.append("🚀 **Potencial**: Há bom potencial de crescimento. Busque aumentar seu share em 0.5% nos próximos 120 dias.")
+                acoes.append("💡 **Estratégia**: Considere parcerias estratégicas ou explore novos canais de aquisição de clientes.")
+            
+            # 4. Análise de Margem (se aplicável)
+            margem_cliente = self.cliente_data.get("margem", 0)
+            if margem_cliente < 0.10 and status != "EVITAR": # Margem abaixo de 10%
+                acoes.append("📉 **Margem Baixa**: Sua margem atual é inferior a 10%. Avalie a estrutura de custos ou o posicionamento de preço.")
+                acoes.append("🛠️ **Ação**: Negocie com fornecedores, otimize processos internos ou explore produtos com maior rentabilidade.")
+
+            # 5. Diversificação de Produtos (se relevante)
+            if status == "FOCO" and mercado > 5_000_000:
+                acoes.append("📦 **Mix de Produtos**: Dada a alta demanda, explore a expansão do seu mix de produtos dentro desta subcategoria para capturar mais mercado.")
+            
+            # 6. Ações de Upsell/Cross-sell
+            if status == "FOCO" or status == "OK":
+                acoes.append("🛒 **Upsell/Cross-sell**: Identifique produtos complementares para oferecer aos clientes desta subcategoria, aumentando o ticket médio e o LTV.")
 
             plano.append({
                 "Subcategoria": subcat,
