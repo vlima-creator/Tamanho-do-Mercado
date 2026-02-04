@@ -86,40 +86,62 @@ def calcular_limites_ticket_local(ticket_mercado, range_permitido=0.20):
     sup = ticket_mercado * (1 + range_permitido)
     return inf, sup
 
-def criar_metric_card(icon, label, value, border_color="#1E3A8A"):
-    """Cria um card de métrica estilizado"""
+def criar_metric_card(icon_svg, label, value, border_color="#1E3A8A"):
+    """Cria um card de métrica estilizado com ícone circular"""
     return f"""
     <div style="
-        background: linear-gradient(135deg, #1a1a1a 0%, #262626 100%);
-        border: 1px solid #333333;
-        border-radius: 12px;
+        background: #0a0a0a;
+        border: 1px solid #1a1a1a;
+        border-radius: 16px;
         padding: 24px 20px;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s;
+        text-align: left;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     ">
         <div style="
-            font-size: 2.5rem;
-            margin-bottom: 12px;
-            filter: drop-shadow(0 0 8px rgba(30, 58, 138, 0.3));
-        ">{icon}</div>
-        <div style="
-            font-size: 0.75rem;
-            color: #A0A0A0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-            font-weight: 600;
-        ">{label}</div>
-        <div style="
-            font-size: 1.8rem;
-            color: #FFFFFF;
-            font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-        ">{value}</div>
+            width: 45px;
+            height: 45px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        ">
+            {icon_svg}
+        </div>
+        <div>
+            <div style="
+                font-size: 0.7rem;
+                color: #FFFFFF;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                margin-bottom: 8px;
+                font-weight: 600;
+                opacity: 0.8;
+            ">{label}</div>
+            <div style="
+                font-size: 1.5rem;
+                color: #FFFFFF;
+                font-weight: 700;
+            ">{value}</div>
+        </div>
     </div>
     """
+
+# Ícones SVG Estilizados
+SVG_ICONS = {
+    "box": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>',
+    "dollar": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>',
+    "chart": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>',
+    "target": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
+    "user": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
+    "file": '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>'
+}
 
 # --- INICIALIZAÇÃO ---
 
@@ -265,12 +287,12 @@ st.markdown("""
     
     /* Header Principal */
     .main-header {
-        background: linear-gradient(135deg, #1a1a1a 0%, #262626 100%);
-        border: 1px solid #333333;
-        border-radius: 12px;
-        padding: 2rem;
+        background: #0a0a0a;
+        border: 1px solid #1a1a1a;
+        border-radius: 20px;
+        padding: 2.5rem;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
     }
     
     .main-header h1 {
@@ -453,13 +475,15 @@ st.markdown("""
 # --- SIDEBAR ---
 with st.sidebar:
     # Logo e Título
-    st.markdown("""
+    st.markdown(f"""
     <div style="text-align: center; padding: 1rem 0 2rem 0;">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">📊</div>
-        <div style="font-size: 1.5rem; font-weight: bold; color: #FFFFFF; text-transform: uppercase; letter-spacing: 2px;">
+        <div style="width: 60px; height: 60px; background: #1a1a1a; border: 1px solid #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+            {SVG_ICONS["chart"]}
+        </div>
+        <div style="font-size: 1.2rem; font-weight: bold; color: #FFFFFF; text-transform: uppercase; letter-spacing: 3px;">
             Inteligência de Mercado
         </div>
-        <div style="font-size: 0.9rem; color: #A0A0A0; margin-top: 0.3rem;">
+        <div style="font-size: 0.8rem; color: #A0A0A0; margin-top: 0.5rem; line-height: 1.4;">
             Inteligência de dados aplicada à expansão do seu negócio.
         </div>
     </div>
@@ -468,13 +492,15 @@ with st.sidebar:
     st.markdown("---")
     
     # Upload de Dados
-    st.markdown("""
-    <div style="margin-bottom: 1rem;">
+    st.markdown(f"""
+    <div style="margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; margin-bottom: 0.8rem;">
-            <span style="font-size: 1.5rem; margin-right: 0.5rem;">📦</span>
-            <span style="font-size: 1.1rem; font-weight: bold; color: #FFFFFF;">Upload de Dados</span>
+            <div style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                {SVG_ICONS["box"]}
+            </div>
+            <span style="font-size: 1rem; font-weight: bold; color: #FFFFFF; text-transform: uppercase; letter-spacing: 1px;">Upload de Dados</span>
         </div>
-        <div style="font-size: 0.85rem; color: #A0A0A0;">Mercado Livre ou Shopee</div>
+        <div style="font-size: 0.8rem; color: #A0A0A0; margin-left: 44px;">Mercado Livre ou Shopee</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -491,11 +517,13 @@ with st.sidebar:
     st.markdown("---")
     
     # Gerar Relatório
-    st.markdown("""
-    <div style="margin-bottom: 1rem;">
+    st.markdown(f"""
+    <div style="margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; margin-bottom: 0.8rem;">
-            <span style="font-size: 1.5rem; margin-right: 0.5rem;">📄</span>
-            <span style="font-size: 1.1rem; font-weight: bold; color: #FFFFFF;">Relatório Executivo</span>
+            <div style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                {SVG_ICONS["file"]}
+            </div>
+            <span style="font-size: 1rem; font-weight: bold; color: #FFFFFF; text-transform: uppercase; letter-spacing: 1px;">Relatório Executivo</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -548,13 +576,15 @@ with st.sidebar:
 analyzer = st.session_state.analyzer
 
 # Header Principal
-st.markdown("""
+st.markdown(f"""
 <div class="main-header">
     <div style="display: flex; align-items: center;">
-        <span style="font-size: 3rem; margin-right: 1rem;">📊</span>
+        <div style="width: 80px; height: 80px; background: #1a1a1a; border: 1px solid #333; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-right: 1.5rem;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        </div>
         <div>
-            <h1>INTELIGÊNCIA DE MERCADO</h1>
-            <p>Inteligência de dados aplicada à expansão do seu negócio.</p>
+            <h1 style="margin: 0; font-size: 2.2rem; letter-spacing: 3px; font-weight: 800;">INTELIGÊNCIA DE MERCADO</h1>
+            <p style="margin: 0.5rem 0 0 0; font-size: 1rem; color: #A0A0A0; opacity: 0.8;">Inteligência de dados aplicada à expansão do seu negócio.</p>
         </div>
     </div>
 </div>
@@ -562,18 +592,25 @@ st.markdown("""
 
 # Navegação por Tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🏠 DASHBOARD",
-    "👤 DADOS DO CLIENTE",
-    "📈 GESTÃO DE CATEGORIAS",
-    "🎯 MERCADO SUBCATEGORIAS",
-    "📊 ANÁLISE EXECUTIVA"
+    "DASHBOARD",
+    "DADOS DO CLIENTE",
+    "GESTÃO DE CATEGORIAS",
+    "MERCADO SUBCATEGORIAS",
+    "ANÁLISE EXECUTIVA"
 ])
 
 # ====================
 # TAB 1: DASHBOARD (INÍCIO)
 # ====================
 with tab1:
-    st.markdown("## 🏠 Visão Geral do Sistema")
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; margin-bottom: 1.5rem;">
+        <div style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </div>
+        <h2 style="margin: 0;">Visão Geral do Sistema</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Métricas Principais
     total_categorias = len(analyzer.mercado_categoria)
@@ -594,22 +631,29 @@ with tab1:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown(criar_metric_card("📦", "CATEGORIAS MACRO", str(total_categorias)), unsafe_allow_html=True)
+        st.markdown(criar_metric_card(SVG_ICONS["box"], "CATEGORIAS MACRO", str(total_categorias)), unsafe_allow_html=True)
     
     with col2:
-        st.markdown(criar_metric_card("💰", "FATURAMENTO TOTAL", f"R$ {format_br(faturamento_total)}"), unsafe_allow_html=True)
+        st.markdown(criar_metric_card(SVG_ICONS["dollar"], "FATURAMENTO TOTAL", f"R$ {format_br(faturamento_total)}"), unsafe_allow_html=True)
     
     with col3:
-        st.markdown(criar_metric_card("📊", "SUBCATEGORIAS", str(total_subcategorias)), unsafe_allow_html=True)
+        st.markdown(criar_metric_card(SVG_ICONS["chart"], "SUBCATEGORIAS", str(total_subcategorias)), unsafe_allow_html=True)
     
     with col4:
-        st.markdown(criar_metric_card("🎯", "TICKET MÉDIO", f"R$ {format_br(ticket_medio)}"), unsafe_allow_html=True)
+        st.markdown(criar_metric_card(SVG_ICONS["target"], "TICKET MÉDIO", f"R$ {format_br(ticket_medio)}"), unsafe_allow_html=True)
     
     st.markdown("---")
     
     # Informações do Cliente
     if analyzer.cliente_data:
-        st.markdown("### 👤 Informações do Cliente")
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; margin: 2rem 0 1.5rem 0;">
+            <div style="width: 32px; height: 32px; background: #1a1a1a; border: 1px solid #333; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                {SVG_ICONS["user"]}
+            </div>
+            <h3 style="margin: 0;">Informações do Cliente</h3>
+        </div>
+        """, unsafe_allow_html=True)
         
         col_info1, col_info2, col_info3 = st.columns(3)
         
