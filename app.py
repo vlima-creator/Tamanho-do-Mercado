@@ -66,9 +66,25 @@ def safe_float(val):
 def processar_excel(file):
     try:
         temp_analyzer = MarketAnalyzer()
+        xls = pd.ExcelFile(file)
+        sheet_names = xls.sheet_names
         
+        def find_sheet(possible_names):
+            for s in sheet_names:
+                if any(name.lower() == s.lower().strip() for name in possible_names):
+                    return s
+            for s in sheet_names:
+                if any(name.lower() in s.lower() for name in possible_names):
+                    return s
+            return None
+
         # 1. Cliente
-        df_cliente = pd.read_excel(file, sheet_name="Cliente", header=None)
+        sheet_cliente = find_sheet(["Cliente"])
+        if not sheet_cliente:
+            st.error("❌ Aba 'Cliente' não encontrada. Verifique o nome da aba na sua planilha.")
+            return False
+            
+        df_cliente = pd.read_excel(file, sheet_name=sheet_cliente, header=None)
         def get_val_by_label(labels, default=""):
             for i in range(len(df_cliente)):
                 cell_val = str(df_cliente.iloc[i, 0]).strip().lower()
@@ -92,7 +108,12 @@ def processar_excel(file):
         )
         
         # 2. Mercado Categoria
-        df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
+        sheet_cat = find_sheet(["Mercado_Categoria", "Mercado Categoria", "Categorias"])
+        if not sheet_cat:
+            st.error("❌ Aba 'Mercado_Categoria' não encontrada. Verifique se ela existe e se o nome está correto.")
+            return False
+            
+        df_cat = pd.read_excel(file, sheet_name=sheet_cat, skiprows=2)
         def find_col(df, names):
             for col in df.columns:
                 if any(n.lower() in str(col).lower() for n in names): return col
@@ -115,9 +136,8 @@ def processar_excel(file):
         
         # 3. Mercado Subcategoria (NOVO FORMATO MENSAL)
         # Tenta ler cada aba que não seja 'Cliente' ou 'Mercado_Categoria' como uma aba de Categoria Macro
-        xls = pd.ExcelFile(file)
-        for sheet in xls.sheet_names:
-            if sheet in ["Cliente", "Mercado_Categoria"]: continue
+        for sheet in sheet_names:
+            if sheet in [sheet_cliente, sheet_cat]: continue
             
             df_sub = pd.read_excel(file, sheet_name=sheet, skiprows=2)
             # O padrão esperado: Coluna A = Subcategoria, Colunas B, C, D... = Meses
