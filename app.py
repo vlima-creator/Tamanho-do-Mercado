@@ -826,6 +826,54 @@ with tab3:
     st.markdown("### 📋 Categorias Cadastradas")
     
     if analyzer.mercado_categoria:
+        # NOVO: Visão Geral de Evolução (Gráfico que o usuário mencionou)
+        st.markdown("### 📊 Visão Geral de Evolução Mensal")
+        
+        # Opções para o gráfico principal
+        cat_opcoes = ["Todas as Categorias (Soma)"] + list(analyzer.mercado_categoria.keys())
+        cat_selecionada_grafico = st.selectbox("Selecione a Categoria para visualizar a evolução:", cat_opcoes, key="sel_cat_evolucao")
+        
+        if cat_selecionada_grafico == "Todas as Categorias (Soma)":
+            # Agregar dados de todas as categorias por período
+            todos_periodos = []
+            for cat, periodos in analyzer.mercado_categoria.items():
+                todos_periodos.extend(periodos)
+            
+            if todos_periodos:
+                df_all = pd.DataFrame(todos_periodos)
+                # Agrupar por período e somar
+                df_evolucao = df_all.groupby('periodo').agg({
+                    'faturamento': 'sum',
+                    'unidades': 'sum'
+                }).reset_index()
+                # Ordenar por período (tentar converter para datetime para ordenação correta)
+                try:
+                    df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'])
+                    df_evolucao = df_evolucao.sort_values('periodo_dt').drop(columns=['periodo_dt'])
+                except:
+                    df_evolucao = df_evolucao.sort_values('periodo')
+            else:
+                df_evolucao = pd.DataFrame()
+        else:
+            df_evolucao = pd.DataFrame(analyzer.mercado_categoria[cat_selecionada_grafico])
+
+        if not df_evolucao.empty:
+            # Mostrar gráfico de evolução imediatamente (Faturamento e Unidades)
+            st.plotly_chart(criar_grafico_evolucao_categoria(df_evolucao), use_container_width=True)
+            
+            # Métricas rápidas
+            m_col1, m_col2, m_col3 = st.columns(3)
+            fat_total = df_evolucao['faturamento'].sum()
+            uni_total = df_evolucao['unidades'].sum()
+            tm_medio = fat_total / uni_total if uni_total > 0 else 0
+            
+            m_col1.metric("Faturamento Total", f"R$ {format_br(fat_total)}")
+            m_col2.metric("Total Unidades", f"{int(uni_total)}")
+            m_col3.metric("Ticket Médio", f"R$ {format_br(tm_medio)}")
+
+        st.markdown("---")
+        st.markdown("### 📋 Detalhes e Edição por Categoria")
+        
         for cat, periodos in analyzer.mercado_categoria.items():
             with st.expander(f"📁 {cat} ({len(periodos)} períodos)"):
                 df_cat = pd.DataFrame(periodos)
@@ -836,6 +884,20 @@ with tab3:
                         axis=1
                     )
                     
+                    # Visualizações rápidas dentro do expander também
+                    c_viz1, c_viz2 = st.columns(2)
+                    with c_viz1:
+                        st.plotly_chart(criar_grafico_evolucao_categoria(df_cat), use_container_width=True)
+                    with c_viz2:
+                        st.plotly_chart(criar_grafico_ticket_medio(df_cat), use_container_width=True)
+
+                    # Tabela de Dados
+                    st.markdown("#### 📊 Tabela de Dados")
+                    df_disp = df_cat.copy()
+                    df_disp['faturamento'] = df_disp['faturamento'].apply(format_br)
+                    df_disp['ticket_medio'] = df_disp['ticket_medio'].apply(format_br)
+                    st.dataframe(df_disp, use_container_width=True)
+
                     # Editar períodos
                     st.markdown("#### ✏️ Editar Períodos")
                     for i, row in df_cat.iterrows():
@@ -852,21 +914,6 @@ with tab3:
                             if b2.form_submit_button("🗑️ Excluir"):
                                 analyzer.remover_periodo_categoria(cat, row['periodo'])
                                 st.rerun()
-                    
-                    # Tabela de Dados
-                    st.markdown("#### 📊 Dados da Categoria")
-                    df_disp = df_cat.copy()
-                    df_disp['faturamento'] = df_disp['faturamento'].apply(format_br)
-                    df_disp['ticket_medio'] = df_disp['ticket_medio'].apply(format_br)
-                    st.dataframe(df_disp, use_container_width=True)
-                    
-                    # Visualizações
-                    st.markdown("#### 📈 Visualizações")
-                    tab_viz1, tab_viz2 = st.tabs(["Evolução da Categoria", "Ticket Médio"])
-                    with tab_viz1:
-                        st.plotly_chart(criar_grafico_evolucao_categoria(df_cat), use_container_width=True)
-                    with tab_viz2:
-                        st.plotly_chart(criar_grafico_ticket_medio(df_cat), use_container_width=True)
     else:
         st.info("Nenhuma categoria macro cadastrada.")
 
