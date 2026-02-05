@@ -856,8 +856,14 @@ with tab3:
                 }).reset_index()
                 # Ordenar por período (tentar converter para datetime para ordenação correta)
                 try:
-                    # Tentar converter formatos como 'Jan/24', '2024-01' ou datas completas
-                    df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], errors='coerce')
+                    # Tentar converter formatos como '1/1/2025', 'Jan/24', '2024-01'
+                    df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], dayfirst=True, errors='coerce')
+                    
+                    # Se falhar, tenta sem dayfirst
+                    mask_na = df_evolucao['periodo_dt'].isna()
+                    if mask_na.any():
+                        df_evolucao.loc[mask_na, 'periodo_dt'] = pd.to_datetime(df_evolucao.loc[mask_na, 'periodo'], errors='coerce')
+
                     # Se houver falhas na conversão automática, manter a ordem original ou alfabética
                     if df_evolucao['periodo_dt'].isna().any():
                         df_evolucao = df_evolucao.sort_values('periodo')
@@ -872,7 +878,11 @@ with tab3:
             df_evolucao = pd.DataFrame(analyzer.mercado_categoria[cat_selecionada_grafico])
             # Garantir ordenação para categorias individuais também
             try:
-                df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], errors='coerce')
+                df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], dayfirst=True, errors='coerce')
+                mask_na = df_evolucao['periodo_dt'].isna()
+                if mask_na.any():
+                    df_evolucao.loc[mask_na, 'periodo_dt'] = pd.to_datetime(df_evolucao.loc[mask_na, 'periodo'], errors='coerce')
+                
                 if not df_evolucao['periodo_dt'].isna().any():
                     df_evolucao = df_evolucao.sort_values('periodo_dt')
                 df_evolucao = df_evolucao.drop(columns=['periodo_dt'])
@@ -903,7 +913,11 @@ with tab3:
                 if not df_cat.empty:
                     # Garantir ordenação cronológica dos períodos
                     try:
-                        df_cat['periodo_dt'] = pd.to_datetime(df_cat['periodo'], errors='coerce')
+                        df_cat['periodo_dt'] = pd.to_datetime(df_cat['periodo'], dayfirst=True, errors='coerce')
+                        mask_na = df_cat['periodo_dt'].isna()
+                        if mask_na.any():
+                            df_cat.loc[mask_na, 'periodo_dt'] = pd.to_datetime(df_cat.loc[mask_na, 'periodo'], errors='coerce')
+                        
                         if not df_cat['periodo_dt'].isna().any():
                             df_cat = df_cat.sort_values('periodo_dt')
                         df_cat = df_cat.drop(columns=['periodo_dt'])

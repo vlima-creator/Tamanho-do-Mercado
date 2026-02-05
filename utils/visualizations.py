@@ -38,6 +38,20 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
         marker=dict(size=8),
         yaxis='y2'
     ))
+
+    # Ticket Médio
+    if 'ticket_medio' not in df.columns:
+        df['ticket_medio'] = df.apply(lambda row: row['faturamento'] / row['unidades'] if row['unidades'] > 0 else 0, axis=1)
+
+    fig.add_trace(go.Scatter(
+        x=df['periodo'],
+        y=df['ticket_medio'],
+        name='Ticket Médio',
+        mode='lines+markers',
+        line=dict(color='#2ca02c', width=2, dash='dot'),
+        marker=dict(size=6),
+        yaxis='y3'
+    ))
     
     fig.update_layout(
         title='Evolução da Categoria (Macro)',
@@ -53,8 +67,16 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
             overlaying='y',
             showgrid=False
         ),
+        yaxis3=dict(
+            title='Ticket Médio (R$)',
+            side='right',
+            overlaying='y',
+            anchor='free',
+            autoshift=True,
+            showgrid=False
+        ),
         hovermode='x unified',
-        height=400,
+        height=450,
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
     
