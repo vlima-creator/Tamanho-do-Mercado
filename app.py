@@ -73,9 +73,21 @@ def parse_large_number(text):
     return 0.0
 
 def safe_float(val):
+    if pd.isna(val): return 0.0
+    if isinstance(val, (int, float)): return float(val)
     try:
-        if pd.isna(val): return 0.0
-        return float(val)
+        # Remove R$, pontos de milhar e troca vírgula por ponto
+        s = str(val).replace('R$', '').replace('$', '').strip()
+        if not s: return 0.0
+        # Lógica para formato brasileiro: 1.234,56 -> 1234.56
+        if ',' in s and '.' in s:
+            if s.rfind(',') > s.rfind('.'): # 1.234,56
+                s = s.replace('.', '').replace(',', '.')
+            else: # 1,234.56
+                s = s.replace(',', '')
+        elif ',' in s:
+            s = s.replace(',', '.')
+        return float(s)
     except:
         return 0.0
 
@@ -216,17 +228,23 @@ def processar_excel(file):
 
         count_cat = 0
         if col_cat and col_per:
-            # Debug: Mostrar colunas encontradas
-            # st.write(f"Colunas detectadas: Cat={col_cat}, Per={col_per}, Fat={col_fat}, Uni={col_uni}")
             for _, row in df_cat.iterrows():
                 if pd.notna(row[col_cat]) and pd.notna(row[col_per]):
-                    cat_val = str(row[col_cat])
-                    per_val = str(row[col_per])
-                    fat_val = safe_float(row[col_fat]) if col_fat and col_fat in row and pd.notna(row[col_fat]) else 0
-                    uni_val = int(safe_float(row[col_uni])) if col_uni and col_uni in row and pd.notna(row[col_uni]) else 0
+                    cat_val = str(row[col_cat]).strip()
                     
-                    temp_analyzer.add_mercado_categoria(cat_val, per_val, fat_val, uni_val)
-                    count_cat += 1
+                    # Tratamento especial para datas que vêm do Excel como datetime objects
+                    raw_per = row[col_per]
+                    if isinstance(raw_per, datetime):
+                        per_val = raw_per.strftime('%d/%m/%Y')
+                    else:
+                        per_val = str(raw_per).strip()
+                    
+                    fat_val = safe_float(row[col_fat]) if col_fat and col_fat in row else 0.0
+                    uni_val = int(safe_float(row[col_uni])) if col_uni and col_uni in row else 0
+                    
+                    if cat_val and per_val:
+                        temp_analyzer.add_mercado_categoria(cat_val, per_val, fat_val, uni_val)
+                        count_cat += 1
                 
         # 3. Mercado Subcategoria
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
@@ -854,17 +872,19 @@ with tab3:
                     'faturamento': 'sum',
                     'unidades': 'sum'
                 }).reset_index()
+                
+                # RECALCULAR Ticket Médio da agregação (Soma Fat / Soma Uni)
+                df_evolucao['ticket_medio'] = df_evolucao.apply(
+                    lambda r: r['faturamento'] / r['unidades'] if r['unidades'] > 0 else 0, axis=1
+                )
+                
                 # Ordenar por período (tentar converter para datetime para ordenação correta)
                 try:
-                    # Tentar converter formatos como '1/1/2025', 'Jan/24', '2024-01'
                     df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], dayfirst=True, errors='coerce')
-                    
-                    # Se falhar, tenta sem dayfirst
                     mask_na = df_evolucao['periodo_dt'].isna()
                     if mask_na.any():
                         df_evolucao.loc[mask_na, 'periodo_dt'] = pd.to_datetime(df_evolucao.loc[mask_na, 'periodo'], errors='coerce')
 
-                    # Se houver falhas na conversão automática, manter a ordem original ou alfabética
                     if df_evolucao['periodo_dt'].isna().any():
                         df_evolucao = df_evolucao.sort_values('periodo')
                     else:
