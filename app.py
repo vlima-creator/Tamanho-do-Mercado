@@ -199,6 +199,11 @@ def processar_excel(file):
         df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
         
         def find_col(df, possible_names):
+            # Primeiro tenta match exato (case insensitive)
+            for col in df.columns:
+                if any(name.lower() == str(col).lower().strip() for name in possible_names):
+                    return col
+            # Depois tenta conter a string
             for col in df.columns:
                 if any(name.lower() in str(col).lower() for name in possible_names):
                     return col
@@ -211,13 +216,16 @@ def processar_excel(file):
 
         count_cat = 0
         if col_cat and col_per:
+            # Debug: Mostrar colunas encontradas
+            # st.write(f"Colunas detectadas: Cat={col_cat}, Per={col_per}, Fat={col_fat}, Uni={col_uni}")
             for _, row in df_cat.iterrows():
                 if pd.notna(row[col_cat]) and pd.notna(row[col_per]):
-                    temp_analyzer.add_mercado_categoria(
-                        str(row[col_cat]), str(row[col_per]), 
-                        safe_float(row[col_fat]) if col_fat and col_fat in row and pd.notna(row[col_fat]) else 0, 
-                        int(safe_float(row[col_uni])) if col_uni and col_uni in row and pd.notna(row[col_uni]) else 0
-                    )
+                    cat_val = str(row[col_cat])
+                    per_val = str(row[col_per])
+                    fat_val = safe_float(row[col_fat]) if col_fat and col_fat in row and pd.notna(row[col_fat]) else 0
+                    uni_val = int(safe_float(row[col_uni])) if col_uni and col_uni in row and pd.notna(row[col_uni]) else 0
+                    
+                    temp_analyzer.add_mercado_categoria(cat_val, per_val, fat_val, uni_val)
                     count_cat += 1
                 
         # 3. Mercado Subcategoria
@@ -848,14 +856,28 @@ with tab3:
                 }).reset_index()
                 # Ordenar por período (tentar converter para datetime para ordenação correta)
                 try:
-                    df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'])
-                    df_evolucao = df_evolucao.sort_values('periodo_dt').drop(columns=['periodo_dt'])
+                    # Tentar converter formatos como 'Jan/24', '2024-01' ou datas completas
+                    df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], errors='coerce')
+                    # Se houver falhas na conversão automática, manter a ordem original ou alfabética
+                    if df_evolucao['periodo_dt'].isna().any():
+                        df_evolucao = df_evolucao.sort_values('periodo')
+                    else:
+                        df_evolucao = df_evolucao.sort_values('periodo_dt')
+                    df_evolucao = df_evolucao.drop(columns=['periodo_dt'])
                 except:
                     df_evolucao = df_evolucao.sort_values('periodo')
             else:
                 df_evolucao = pd.DataFrame()
         else:
             df_evolucao = pd.DataFrame(analyzer.mercado_categoria[cat_selecionada_grafico])
+            # Garantir ordenação para categorias individuais também
+            try:
+                df_evolucao['periodo_dt'] = pd.to_datetime(df_evolucao['periodo'], errors='coerce')
+                if not df_evolucao['periodo_dt'].isna().any():
+                    df_evolucao = df_evolucao.sort_values('periodo_dt')
+                df_evolucao = df_evolucao.drop(columns=['periodo_dt'])
+            except:
+                pass
 
         if not df_evolucao.empty:
             # Mostrar gráfico de evolução imediatamente (Faturamento e Unidades)
@@ -879,6 +901,15 @@ with tab3:
                 df_cat = pd.DataFrame(periodos)
                 
                 if not df_cat.empty:
+                    # Garantir ordenação cronológica dos períodos
+                    try:
+                        df_cat['periodo_dt'] = pd.to_datetime(df_cat['periodo'], errors='coerce')
+                        if not df_cat['periodo_dt'].isna().any():
+                            df_cat = df_cat.sort_values('periodo_dt')
+                        df_cat = df_cat.drop(columns=['periodo_dt'])
+                    except:
+                        pass
+
                     df_cat['ticket_medio'] = df_cat.apply(
                         lambda row: row['faturamento'] / row['unidades'] if row['unidades'] > 0 else 0,
                         axis=1
