@@ -952,9 +952,9 @@ with tab3:
                     # Visualizações rápidas dentro do expander também
                     c_viz1, c_viz2 = st.columns(2)
                     with c_viz1:
-                        st.plotly_chart(criar_grafico_evolucao_categoria(df_cat), use_container_width=True)
+                        st.plotly_chart(criar_grafico_evolucao_categoria(df_cat), use_container_width=True, key=f"evolucao_{cat}")
                     with c_viz2:
-                        st.plotly_chart(criar_grafico_ticket_medio(df_cat), use_container_width=True)
+                        st.plotly_chart(criar_grafico_ticket_medio(df_cat), use_container_width=True, key=f"ticket_{cat}")
 
                     # Tabela de Dados
                     st.markdown("#### 📊 Tabela de Dados")
@@ -1058,7 +1058,7 @@ with tab5:
             df_display = df_ranking[['Categoria Macro', 'Subcategoria', 'Score', 'Status']].copy()
             st.dataframe(df_display, use_container_width=True)
         with col_rank2:
-            st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True)
+            st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True, key="ranking_subcategorias")
         
         st.markdown("---")
         
@@ -1107,11 +1107,11 @@ with tab5:
         # Gráficos de Score e Ticket
         g1, g2 = st.columns(2)
         with g1:
-            st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
+            st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True, key="gauge_score_foco")
         with g2:
             r_perm = analyzer.cliente_data.get('range_permitido', 0.20)
             l_inf, l_sup = calcular_limites_ticket_local(res['ticket_mercado'], r_perm)
-            st.plotly_chart(criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True)
+            st.plotly_chart(criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True, key="comparacao_tickets_foco")
         
         # Projeções de Receita e Lucro
         st.markdown("#### 📈 Projeções de Receita e Lucro")
@@ -1126,7 +1126,7 @@ with tab5:
             df_disp_cen['Crescimento (%)'] = df_disp_cen['Crescimento (%)'].apply(lambda x: f"{x:,.1f}%".replace(",", "X").replace(".", ",").replace("X", "."))
             st.dataframe(df_disp_cen, use_container_width=True)
         with c_tab2:
-            st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True)
+            st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True, key="grafico_cenarios_foco")
         
         # Tendência e Projeção
         st.markdown("---")
@@ -1184,7 +1184,7 @@ with tab5:
                 ),
                 xaxis=dict(showgrid=False)
             )
-            st.plotly_chart(fig_proj, use_container_width=True)
+            st.plotly_chart(fig_proj, use_container_width=True, key="projecao_mensal_foco")
         
         # Plano de Ação
         st.markdown("---")
