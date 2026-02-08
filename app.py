@@ -1056,7 +1056,7 @@ with tab5:
                 for m in confianca['motivos']:
                     st.write(f"• {m}")
         
-        tendencia_res = analyzer.calcular_tendencia(row_foco['Categoria Macro'])
+        tendencia_res = analyzer.calcular_tendencia(row_foco['Categoria Macro'], subcategoria=sub_foco_dashboard)
         
         t_col1, t_col2, t_col3 = st.columns([1, 1, 2])
         with t_col1:

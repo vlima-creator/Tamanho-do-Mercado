@@ -286,23 +286,37 @@ class MarketAnalyzer:
             'cenarios': pd.DataFrame(resultados)
         }
 
-    def calcular_tendencia(self, categoria: str) -> Dict:
-        """Calcula tendência de crescimento baseada no histórico da categoria macro"""
-        historico = self.mercado_categoria.get(categoria, [])
+    def calcular_tendencia(self, categoria: str, subcategoria: str = None) -> Dict:
+        """Calcula tendência de crescimento baseada no histórico da categoria ou subcategoria"""
+        if subcategoria:
+            # Filtrar dados mensais apenas da subcategoria específica
+            historico = [item for item in self.mercado_subcategorias_mensal if item['subcategoria'] == subcategoria]
+        else:
+            historico = self.mercado_categoria.get(categoria, [])
+            
         if len(historico) < 2:
             return {
                 "tendencia": "Estável",
                 "crescimento_mensal": 0.0,
                 "projecao_3m": 0.0,
-                "mensal": [0, 0, 0]
+                "mensal": [0, 0, 0],
+                "confianca": 0.5
             }
             
         df = pd.DataFrame(historico)
+        # Garantir ordenação cronológica para o cálculo da tendência
+        df['periodo_dt'] = pd.to_datetime(df['periodo'], errors='coerce')
+        df = df.dropna(subset=['periodo_dt']).sort_values('periodo_dt')
+        
         df['faturamento'] = df['faturamento'].astype(float)
         
         # Cálculo de crescimento médio mensal
         df['crescimento'] = df['faturamento'].pct_change()
         crescimento_medio = df['crescimento'].mean()
+        
+        # Índice de confiança baseado na volatilidade e quantidade de dados
+        volatilidade = df['crescimento'].std() if len(df) > 2 else 0.5
+        confianca = max(0.3, min(0.95, (1 - volatilidade) * (len(df) / 12)))
         
         ultimo_fat = df['faturamento'].iloc[-1]
         proj_mensal = []
@@ -315,7 +329,8 @@ class MarketAnalyzer:
             "tendencia": "Alta" if crescimento_medio > 0.02 else ("Baixa" if crescimento_medio < -0.02 else "Estável"),
             "crescimento_mensal": crescimento_medio * 100,
             "projecao_3m": projecao_total_3m,
-            "mensal": proj_mensal
+            "mensal": proj_mensal,
+            "confianca": confianca
         }
 
     def identificar_anomalias(self, categoria: str) -> List[Dict]:
