@@ -902,18 +902,23 @@ with tab4:
         st.markdown("---")
         
         if cat_sel in analyzer.mercado_subcategorias:
-            subcategorias_lista = analyzer.mercado_subcategorias[cat_sel]
+            # Usar dados consolidados para a lista de visualização
+            subcategorias_consolidadas = analyzer.get_subcategorias_consolidadas(cat_sel)
             
-            st.markdown("### 📋 Lista de Subcategorias")
-            if not subcategorias_lista:
+            st.markdown("### 📋 Lista de Subcategorias (Consolidado)")
+            if not subcategorias_consolidadas:
                 st.info("Nenhuma subcategoria cadastrada para esta categoria macro.")
             else:
-                df_sub_raw = pd.DataFrame(subcategorias_lista)
+                df_sub_raw = pd.DataFrame(subcategorias_consolidadas)
                 
                 # Tabela de visualização
                 df_sub_disp = df_sub_raw.copy()
-                df_sub_disp['faturamento_6m'] = df_sub_disp['faturamento_6m'].apply(format_br)
-                df_sub_disp['ticket_medio'] = df_sub_disp['ticket_medio'].apply(format_br)
+                # Garantir que as colunas existem antes de formatar
+                if 'faturamento_6m' in df_sub_disp.columns:
+                    df_sub_disp['faturamento_6m'] = df_sub_disp['faturamento_6m'].apply(format_br)
+                if 'ticket_medio' in df_sub_disp.columns:
+                    df_sub_disp['ticket_medio'] = df_sub_disp['ticket_medio'].apply(format_br)
+                
                 st.dataframe(df_sub_disp, use_container_width=True)
                 
                 st.markdown("#### ✏️ Editar Subcategorias")
@@ -922,8 +927,8 @@ with tab4:
                         with st.form(f"edit_sub_{cat_sel}_{i}"):
                             c1, c2, c3 = st.columns(3)
                             new_sub = c1.text_input("Nome Subcategoria", value=row['subcategoria'])
-                            new_fat = c2.text_input("Faturamento 6M (R$)", value=str(row['faturamento_6m']))
-                            new_uni = c3.text_input("Unidades 6M", value=str(row['unidades_6m']))
+                            new_fat = c2.text_input("Faturamento (R$)", value=str(row.get('faturamento_6m', 0)))
+                            new_uni = c3.text_input("Unidades", value=str(row.get('unidades_6m', 0)))
                             
                             b1, b2 = st.columns(2)
                             if b1.form_submit_button("💾 Salvar Alterações"):
@@ -995,7 +1000,10 @@ with tab5:
             share_alvo = custom_shares['Provável']['share_alvo'] * 100
             st.markdown(criar_metric_card("🎯", "Meta de Share", f"{share_alvo:.1f}%"), unsafe_allow_html=True)
         with m4:
-            st.markdown(criar_metric_card("💰", "Ticket Mercado", f"R$ {format_br(res['ticket_mercado'])}"), unsafe_allow_html=True)
+            # Obter ticket médio consolidado da subcategoria
+            subcat_consolidada = next((s for s in analyzer.get_subcategorias_consolidadas(row_foco['Categoria Macro']) if s['subcategoria'] == sub_foco_dashboard), {})
+            ticket_mercado_cons = subcat_consolidada.get('ticket_medio', 0)
+            st.markdown(criar_metric_card("💰", "Ticket Mercado", f"R$ {format_br(ticket_mercado_cons)}"), unsafe_allow_html=True)
         with m5:
             st.markdown(criar_metric_card("📈", "Sua Margem", f"{analyzer.cliente_data.get('margem', 0)*100:.1f}%"), unsafe_allow_html=True)
         
@@ -1005,8 +1013,8 @@ with tab5:
             st.plotly_chart(criar_gauge_score(row_foco['Score'], row_foco['Status']), use_container_width=True)
         with g2:
             r_perm = analyzer.cliente_data.get('range_permitido', 0.20)
-            l_inf, l_sup = calcular_limites_ticket_local(res['ticket_mercado'], r_perm)
-            st.plotly_chart(criar_comparacao_tickets(res['ticket_mercado'], row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True)
+            l_inf, l_sup = calcular_limites_ticket_local(ticket_mercado_cons, r_perm)
+            st.plotly_chart(criar_comparacao_tickets(ticket_mercado_cons, row_foco['Ticket Cliente'], l_inf, l_sup), use_container_width=True)
         
         # Projeções de Receita e Lucro
         st.markdown("#### 📈 Projeções de Receita e Lucro")
