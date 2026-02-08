@@ -18,27 +18,30 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     # Garantir ordenação cronológica e continuidade
     try:
         df = df.copy()
-        # Converter para datetime, tratando erros
+        # Converter para datetime para ordenação, mas manter o original para o merge
         df['periodo_dt'] = pd.to_datetime(df['periodo'], errors='coerce')
         df = df.dropna(subset=['periodo_dt'])
+        
+        # Criar range completo de meses
+        min_date = df['periodo_dt'].min()
+        max_date = df['periodo_dt'].max()
+        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+        
+        df_full = pd.DataFrame({'periodo_dt': all_months})
+        # Merge usando a coluna de data para garantir precisão
+        df = pd.merge(df_full, df, on='periodo_dt', how='left')
+        
+        # Ordenar pelo campo de data
         df = df.sort_values('periodo_dt')
         
-        if not df.empty:
-            # Criar range completo de meses para evitar buracos no gráfico
-            min_date = df['periodo_dt'].min()
-            max_date = df['periodo_dt'].max()
-            all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
-            
-            df_full = pd.DataFrame({'periodo_dt': all_months})
-            # Merge mantendo os dados originais
-            df = pd.merge(df_full, df, on='periodo_dt', how='left')
-            # Preencher o nome do período formatado
-            df['periodo'] = df['periodo_dt'].dt.strftime('%Y-%m')
-            # Preencher faturamento e unidades com 0 para os meses vazios
-            df['faturamento'] = df['faturamento'].fillna(0)
-            df['unidades'] = df['unidades'].fillna(0)
+        # Atualizar a coluna 'periodo' para exibição no eixo X
+        df['periodo'] = df['periodo_dt'].dt.strftime('%Y-%m')
+        
+        # Preencher faturamento e unidades com 0 apenas onde for NaN (meses faltantes)
+        df['faturamento'] = pd.to_numeric(df['faturamento']).fillna(0)
+        df['unidades'] = pd.to_numeric(df['unidades']).fillna(0)
     except Exception as e:
-        print(f"Erro no processamento do gráfico: {e}")
+        pass
     
     fig = go.Figure()
     
@@ -365,23 +368,27 @@ def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: s
         df_sub = df_sub.copy()
         df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'], errors='coerce')
         df_sub = df_sub.dropna(subset=['periodo_dt'])
+        
+        # Criar range completo de meses
+        min_date = df_sub['periodo_dt'].min()
+        max_date = df_sub['periodo_dt'].max()
+        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+        
+        df_full = pd.DataFrame({'periodo_dt': all_months})
+        df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
+        
+        # Ordenar pelo campo de data
         df_sub = df_sub.sort_values('periodo_dt')
         
-        if not df_sub.empty:
-            # Criar range completo de meses
-            min_date = df_sub['periodo_dt'].min()
-            max_date = df_sub['periodo_dt'].max()
-            all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
-            
-            df_full = pd.DataFrame({'periodo_dt': all_months})
-            df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
-            df_sub['periodo'] = df_sub['periodo_dt'].dt.strftime('%Y-%m')
-            # Preencher faturamento e unidades com 0 para os meses vazios
-            df_sub['faturamento'] = df_sub['faturamento'].fillna(0)
-            df_sub['unidades'] = df_sub['unidades'].fillna(0)
+        # Atualizar a coluna 'periodo' para exibição
+        df_sub['periodo'] = df_sub['periodo_dt'].dt.strftime('%Y-%m')
+        
+        # Preencher faturamento e unidades com 0 apenas onde for NaN
+        df_sub['faturamento'] = pd.to_numeric(df_sub['faturamento']).fillna(0)
+        df_sub['unidades'] = pd.to_numeric(df_sub['unidades']).fillna(0)
     except Exception as e:
-        print(f"Erro no processamento do gráfico sub: {e}")
-
+        pass
+    
     fig = go.Figure()
     
     # Faturamento
