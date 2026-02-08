@@ -38,31 +38,14 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
         marker=dict(size=8),
         yaxis='y2'
     ))
-
-    # Ticket Médio
-    if 'ticket_medio' not in df.columns:
-        df['ticket_medio'] = df.apply(lambda row: row['faturamento'] / row['unidades'] if row['unidades'] > 0 else 0, axis=1)
-
-    fig.add_trace(go.Scatter(
-        x=df['periodo'],
-        y=df['ticket_medio'],
-        name='Ticket Médio (R$)',
-        mode='lines+markers+text',
-        line=dict(color='#2ca02c', width=2, dash='dot'),
-        marker=dict(size=8, symbol='diamond'),
-        text=df['ticket_medio'].apply(lambda x: f'R${x:,.0f}'),
-        textposition='top center',
-        yaxis='y3'
-    ))
     
     fig.update_layout(
-        title='Evolução da Categoria: Faturamento, Unidades e Ticket Médio',
-        xaxis=dict(title='Período', tickangle=-45),
+        title='Evolução da Categoria (Macro)',
+        xaxis=dict(title='Período'),
         yaxis=dict(
             title='Faturamento (R$)',
             side='left',
-            showgrid=True,
-            gridcolor='rgba(255,255,255,0.1)'
+            showgrid=True
         ),
         yaxis2=dict(
             title='Unidades',
@@ -70,19 +53,9 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
             overlaying='y',
             showgrid=False
         ),
-        yaxis3=dict(
-            title='Ticket Médio (R$)',
-            side='right',
-            overlaying='y',
-            anchor='free',
-            autoshift=True,
-            showgrid=False,
-            shift=60
-        ),
         hovermode='x unified',
-        height=500,
-        legend=dict(orientation='h', yanchor='bottom', y=1.1, xanchor='center', x=0.5),
-        margin=dict(r=100) # Espaço para o terceiro eixo
+        height=400,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
     )
     
     return fig
