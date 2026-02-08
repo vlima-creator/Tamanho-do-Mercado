@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Módulo de cálculos de mercado e análise estratégica - Suporte a Múltiplas Categorias
+Módulo de cálculos de mercado e análise estratégica - Suporte a Múltiplas Categorias e Dados Mensais
 """
 
 import pandas as pd
@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 
 
 class MarketAnalyzer:
-    """Classe para análise de mercado e cálculo de scores com suporte a múltiplas categorias"""
+    """Classe para análise de mercado e cálculo de scores com suporte a múltiplas categorias e dados mensais"""
     
     def __init__(self):
         self.cliente_data = {
@@ -19,7 +19,7 @@ class MarketAnalyzer:
         }
         # Estrutura: { 'Categoria Nome': [ {periodo, faturamento, unidades, ticket_medio} ] }
         self.mercado_categoria = {} 
-        # Estrutura: { 'Categoria Nome': [ {subcategoria, faturamento_6m, unidades_6m, ticket_medio} ] }
+        # Estrutura: { 'Categoria Nome': [ {subcategoria, periodo, faturamento, unidades, ticket_medio} ] }
         self.mercado_subcategorias = {}
         
     def set_cliente_data(self, empresa: str, categoria: str, ticket_medio: float,
@@ -57,23 +57,57 @@ class MarketAnalyzer:
             'ticket_medio': ticket_medio
         })
         
-    def add_mercado_subcategoria(self, categoria: str, subcategoria: str, faturamento_6m: float, unidades_6m: int):
-        """Adiciona dados de mercado de subcategoria vinculada a uma categoria macro"""
+    def add_mercado_subcategoria(self, categoria: str, subcategoria: str, faturamento: float, unidades: int, periodo: str = None):
+        """Adiciona dados de mercado de subcategoria vinculada a uma categoria macro (suporta dados mensais)"""
         if categoria not in self.mercado_subcategorias:
             self.mercado_subcategorias[categoria] = []
             
         # Garantir tipos numéricos
-        faturamento_6m = float(faturamento_6m) if faturamento_6m else 0.0
-        unidades_6m = int(float(unidades_6m)) if unidades_6m else 0
+        faturamento = float(faturamento) if faturamento else 0.0
+        unidades = int(float(unidades)) if unidades else 0
             
-        ticket_medio = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
+        ticket_medio = faturamento / unidades if unidades > 0 else 0
         self.mercado_subcategorias[categoria].append({
             'subcategoria': subcategoria,
-            'faturamento_6m': faturamento_6m,
-            'unidades_6m': unidades_6m,
+            'periodo': periodo,
+            'faturamento': faturamento,
+            'unidades': unidades,
             'ticket_medio': ticket_medio
         })
         
+    def get_subcategorias_consolidadas(self, categoria: str = None) -> List[Dict]:
+        """Consolida os dados mensais das subcategorias para análise de 6 meses (ou total disponível)"""
+        if not self.mercado_subcategorias:
+            return []
+            
+        categorias_para_processar = [categoria] if categoria else list(self.mercado_subcategorias.keys())
+        consolidado = []
+        
+        for cat in categorias_para_processar:
+            if cat in self.mercado_subcategorias:
+                df_sub = pd.DataFrame(self.mercado_subcategorias[cat])
+                if df_sub.empty: continue
+                
+                # Agrupar por subcategoria e somar faturamento e unidades
+                df_grouped = df_sub.groupby('subcategoria').agg({
+                    'faturamento': 'sum',
+                    'unidades': 'sum'
+                }).reset_index()
+                
+                for _, row in df_grouped.iterrows():
+                    faturamento_total = row['faturamento']
+                    unidades_total = row['unidades']
+                    ticket_medio = faturamento_total / unidades_total if unidades_total > 0 else 0
+                    
+                    consolidado.append({
+                        'categoria': cat,
+                        'subcategoria': row['subcategoria'],
+                        'faturamento_6m': faturamento_total,
+                        'unidades_6m': unidades_total,
+                        'ticket_medio': ticket_medio
+                    })
+        return consolidado
+
     def calcular_fit_ticket(self, ticket_mercado: float) -> Tuple[str, str]:
         """Calcula fit do ticket cliente vs mercado"""
         ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
@@ -101,7 +135,7 @@ class MarketAnalyzer:
             motivos.append("Pouco histórico de mercado (menos de 3 meses)")
         
         # 2. Discrepância de Ticket
-        subcat_data = next((s for s in self.mercado_subcategorias.get(categoria, []) if s['subcategoria'] == subcategoria), None)
+        subcat_data = next((s for s in self.get_subcategorias_consolidadas(categoria) if s['subcategoria'] == subcategoria), None)
         if subcat_data:
             ticket_mercado = subcat_data['ticket_medio']
             ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
@@ -124,11 +158,12 @@ class MarketAnalyzer:
 
     def calcular_score(self, categoria: str, faturamento_6m: float, ticket_mercado: float) -> float:
         """Calcula score de priorização baseado na Matriz GUT adaptada"""
-        if categoria not in self.mercado_subcategorias or not self.mercado_subcategorias[categoria]:
+        subcats_cat = self.get_subcategorias_consolidadas(categoria)
+        if not subcats_cat:
             return 0.0
             
         # G - Gravidade (Tamanho do Mercado - 40%)
-        max_faturamento = max([s['faturamento_6m'] for s in self.mercado_subcategorias[categoria]])
+        max_faturamento = max([s['faturamento_6m'] for s in subcats_cat])
         g = faturamento_6m / max_faturamento if max_faturamento > 0 else 0
         
         # U - Urgência (Fit de Ticket/Competitividade - 40%)
@@ -161,7 +196,6 @@ class MarketAnalyzer:
     
     def calcular_share_atual(self, mercado_6m: float) -> float:
         """Calcula share atual do cliente no mercado da subcategoria"""
-        # Garantir que estamos pegando o faturamento_3m corretamente
         faturamento_3m = float(self.cliente_data.get('faturamento_3m', 0))
         faturamento_6m_projetado = faturamento_3m * 2
         
@@ -170,32 +204,30 @@ class MarketAnalyzer:
         return 0.0
     
     def gerar_ranking(self, categoria: str = None) -> pd.DataFrame:
-        """Gera ranking de subcategorias. Se categoria for None, gera de todas."""
-        if not self.mercado_subcategorias:
+        """Gera ranking de subcategorias consolidando dados mensais"""
+        subcategorias_consolidadas = self.get_subcategorias_consolidadas(categoria)
+        if not subcategorias_consolidadas:
             return pd.DataFrame()
         
         ranking_data = []
         
-        categorias_para_processar = [categoria] if categoria else list(self.mercado_subcategorias.keys())
-        
-        for cat in categorias_para_processar:
-            if cat in self.mercado_subcategorias:
-                for subcat in self.mercado_subcategorias[cat]:
-                    score = self.calcular_score(cat, subcat['faturamento_6m'], subcat['ticket_medio'])
-                    fit_status, leitura = self.calcular_fit_ticket(subcat['ticket_medio'])
-                    status = self.calcular_status(score, fit_status)
-                    
-                    ranking_data.append({
-                        'Categoria Macro': cat,
-                        'Subcategoria': subcat['subcategoria'],
-                        'Mercado (R$)': subcat['faturamento_6m'],
-                        'Unidades 6M': subcat['unidades_6m'],
-                        'Ticket Mercado': subcat['ticket_medio'],
-                        'Ticket Cliente': self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0),
-                        'Score': score,
-                        'Status': status,
-                        'Leitura': leitura
-                    })
+        for subcat in subcategorias_consolidadas:
+            cat = subcat['categoria']
+            score = self.calcular_score(cat, subcat['faturamento_6m'], subcat['ticket_medio'])
+            fit_status, leitura = self.calcular_fit_ticket(subcat['ticket_medio'])
+            status = self.calcular_status(score, fit_status)
+            
+            ranking_data.append({
+                'Categoria Macro': cat,
+                'Subcategoria': subcat['subcategoria'],
+                'Mercado (R$)': subcat['faturamento_6m'],
+                'Unidades 6M': subcat['unidades_6m'],
+                'Ticket Mercado': subcat['ticket_medio'],
+                'Ticket Cliente': self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0),
+                'Score': score,
+                'Status': status,
+                'Leitura': leitura
+            })
         
         if not ranking_data:
             return pd.DataFrame()
@@ -206,11 +238,9 @@ class MarketAnalyzer:
         return df
     
     def simular_cenarios(self, categoria: str, subcategoria: str, custom_shares: Dict = None) -> Dict:
-        """Simula cenários de crescimento para uma subcategoria de uma categoria"""
-        if categoria not in self.mercado_subcategorias:
-            return {}
-            
-        subcat_data = next((s for s in self.mercado_subcategorias[categoria] if s['subcategoria'] == subcategoria), None)
+        """Simula cenários de crescimento para uma subcategoria consolidada"""
+        subcats_consolidadas = self.get_subcategorias_consolidadas(categoria)
+        subcat_data = next((s for s in subcats_consolidadas if s['subcategoria'] == subcategoria), None)
         
         if not subcat_data:
             return {}
@@ -218,154 +248,71 @@ class MarketAnalyzer:
         mercado_6m = subcat_data['faturamento_6m']
         ticket_usado = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
         margem = self.cliente_data.get('margem', 0)
-        # Faturamento atual do cliente (3 meses)
-        # IMPORTANTE: Se o usuário digitou o faturamento total de 3 meses, não multiplicamos por nada que possa distorcer.
-        # Vamos comparar a projeção de 6 meses do mercado com o que o cliente quer ganhar.
         fat_3m = self.cliente_data.get('faturamento_3m', 0)
         faturamento_cliente_3m = float(fat_3m) if fat_3m else 0
         
-        # Para uma comparação justa de 6 meses:
         faturamento_base_comparacao = faturamento_cliente_3m * 2
         
-        # Usar shares customizados se fornecidos
         if custom_shares:
             cenarios = custom_shares
         else:
             cenarios = {
                 'Conservador': {'share_alvo': 0.002, 'label': '0,2%'},
                 'Provável': {'share_alvo': 0.005, 'label': '0,5%'},
-                'Otimista': {'share_alvo': 0.010, 'label': '1,0%'}
+                'Otimista': {'share_alvo': 0.01, 'label': '1,0%'}
             }
-        
+            
         resultados = []
-        
-        for nome, config in cenarios.items():
-            share_val = config['share_alvo']
-            receita_projetada = mercado_6m * share_val
+        for nome, dados in cenarios.items():
+            share = dados['share_alvo']
+            receita_projetada = mercado_6m * share
             lucro_projetado = receita_projetada * margem
-            
-            # Delta é o GANHO REAL: Receita Projetada - Faturamento Base
             delta = receita_projetada - faturamento_base_comparacao
+            crescimento_pct = (delta / faturamento_base_comparacao * 100) if faturamento_base_comparacao > 0 else 0
             
-            # Crescimento: (Receita Projetada / Faturamento Base) - 1
-            crescimento_pct = 0
-            # Garantir que faturamento_base_comparacao seja float para evitar erro de tipo na divisão
-            fat_base_f = float(faturamento_base_comparacao)
-            if fat_base_f > 0:
-                crescimento_pct = ((float(receita_projetada) / fat_base_f) - 1) * 100
-            elif receita_projetada > 0:
-                crescimento_pct = 100.0
-
             resultados.append({
                 'Cenário': nome,
-                'Share Alvo': config.get('label', f"{share_val*100:.2f}%"),
-                'Ticket Usado': ticket_usado,
+                'Share Alvo': dados.get('label', f"{share*100:.1f}%"),
                 'Receita Projetada 6M': receita_projetada,
                 'Lucro Projetado 6M': lucro_projetado,
                 'Delta vs Atual': delta,
                 'Crescimento (%)': crescimento_pct
             })
-        
+            
         return {
-            'cenarios': pd.DataFrame(resultados),
+            'subcategoria': subcategoria,
             'mercado_6m': mercado_6m,
-            'ticket_mercado': subcat_data['ticket_medio'],
-            'share_atual': self.calcular_share_atual(mercado_6m)
+            'share_atual': self.calcular_share_atual(mercado_6m),
+            'cenarios': pd.DataFrame(resultados)
         }
-    
-    def get_mercado_categoria_df(self, categoria: str) -> pd.DataFrame:
-        """Retorna DataFrame com dados de mercado de uma categoria específica"""
-        if categoria not in self.mercado_categoria:
-            return pd.DataFrame()
-        return pd.DataFrame(self.mercado_categoria[categoria])
-    
-    def remover_mercado_categoria(self, categoria):
-        if categoria in self.mercado_categoria:
-            del self.mercado_categoria[categoria]
-        if categoria in self.mercado_subcategorias:
-            del self.mercado_subcategorias[categoria]
-
-    def remover_periodo_categoria(self, categoria, periodo):
-        if categoria in self.mercado_categoria:
-            self.mercado_categoria[categoria] = [
-                item for item in self.mercado_categoria[categoria]
-                if item['periodo'] != periodo
-            ]
-            # Se não sobrar nenhum período, removemos a categoria
-            if not self.mercado_categoria[categoria]:
-                self.remover_mercado_categoria(categoria)
-
-    def remover_mercado_subcategoria(self, categoria, subcategoria_nome):
-        if categoria in self.mercado_subcategorias:
-            self.mercado_subcategorias[categoria] = [
-                s for s in self.mercado_subcategorias[categoria] 
-                if s['subcategoria'] != subcategoria_nome
-            ]
-
-    def editar_mercado_categoria(self, categoria_antiga, categoria_nova, periodo, faturamento, unidades):
-        if categoria_antiga != categoria_nova:
-            if categoria_antiga in self.mercado_categoria:
-                self.mercado_categoria[categoria_nova] = self.mercado_categoria.pop(categoria_antiga)
-            if categoria_antiga in self.mercado_subcategorias:
-                self.mercado_subcategorias[categoria_nova] = self.mercado_subcategorias.pop(categoria_antiga)
-        
-        if categoria_nova in self.mercado_categoria:
-            for item in self.mercado_categoria[categoria_nova]:
-                if item['periodo'] == periodo:
-                    # Garantir tipos numéricos
-                    f = float(faturamento) if faturamento else 0.0
-                    u = int(float(unidades)) if unidades else 0
-                    item['faturamento'] = f
-                    item['unidades'] = u
-                    item['ticket_medio'] = f / u if u > 0 else 0
-
-    def editar_mercado_subcategoria(self, categoria, sub_antiga, sub_nova, faturamento_6m, unidades_6m):
-        if categoria in self.mercado_subcategorias:
-            for sub in self.mercado_subcategorias[categoria]:
-                if sub['subcategoria'] == sub_antiga:
-                    # Garantir tipos numéricos
-                    f = float(faturamento_6m) if faturamento_6m else 0.0
-                    u = int(float(unidades_6m)) if unidades_6m else 0
-                    sub['subcategoria'] = sub_nova
-                    sub['faturamento_6m'] = f
-                    sub['unidades_6m'] = u
-                    sub['ticket_medio'] = f / u if u > 0 else 0
 
     def calcular_tendencia(self, categoria: str) -> Dict:
-        """Calcula a tendência de crescimento e faz projeção mensal para os próximos 3 meses"""
-        # Faturamento base do cliente (média mensal dos últimos 3 meses)
-        fat_total_3m = float(self.cliente_data.get('faturamento_3m', 0))
-        fat_mensal_base = fat_total_3m / 3 if fat_total_3m > 0 else 0.0
-        
-        if categoria not in self.mercado_categoria or len(self.mercado_categoria[categoria]) < 2:
+        """Calcula tendência de crescimento baseada no histórico da categoria macro"""
+        historico = self.mercado_categoria.get(categoria, [])
+        if len(historico) < 2:
             return {
-                "tendencia": "Estável", 
-                "crescimento_mensal": 0, 
-                "projecao_3m": fat_total_3m,
-                "mensal": [fat_mensal_base] * 3
+                "tendencia": "Estável",
+                "crescimento_mensal": 0.0,
+                "projecao_3m": 0.0,
+                "mensal": [0, 0, 0]
             }
             
-        df = pd.DataFrame(self.mercado_categoria[categoria])
-        df['faturamento'] = pd.to_numeric(df['faturamento'])
+        df = pd.DataFrame(historico)
+        df['faturamento'] = df['faturamento'].astype(float)
         
-        # Cálculo de crescimento médio mensal do mercado
-        df['pct_change'] = df['faturamento'].pct_change()
-        crescimento_medio = df['pct_change'].mean()
-        if pd.isna(crescimento_medio): crescimento_medio = 0.0
+        # Cálculo de crescimento médio mensal
+        df['crescimento'] = df['faturamento'].pct_change()
+        crescimento_medio = df['crescimento'].mean()
         
-        # Projeção mensal (Mês 1, Mês 2, Mês 3)
+        ultimo_fat = df['faturamento'].iloc[-1]
         proj_mensal = []
-        valor_atual = fat_mensal_base
-        for _ in range(3):
-            valor_atual = valor_atual * (1 + crescimento_medio)
-            proj_mensal.append(valor_atual)
+        for i in range(1, 4):
+            proj_mensal.append(ultimo_fat * (1 + crescimento_medio) ** i)
             
         projecao_total_3m = sum(proj_mensal)
         
-        tendencia = "Alta" if crescimento_medio > 0.02 else ("Baixa" if crescimento_medio < -0.02 else "Estável")
-        
         return {
-            "tendencia": tendencia,
+            "tendencia": "Alta" if crescimento_medio > 0.02 else ("Baixa" if crescimento_medio < -0.02 else "Estável"),
             "crescimento_mensal": crescimento_medio * 100,
             "projecao_3m": projecao_total_3m,
             "mensal": proj_mensal
@@ -376,7 +323,7 @@ class MarketAnalyzer:
         anomalias = []
         df_ranking = self.gerar_ranking(categoria)
         if df_ranking.empty: return []
-
+        
         for _, row in df_ranking.iterrows():
             subcat = row['Subcategoria']
             ticket_m = float(row['Ticket Mercado'])
@@ -400,7 +347,7 @@ class MarketAnalyzer:
                         "mensagem": f"Seu preço está {abs(diff_pct)*100:.1f}% ABAIXO da média. Risco de erosão de margem.",
                         "severidade": "Média"
                     })
-
+            
             # 2. Anomalia de Performance (Score Baixo em Mercado Grande)
             if status == "EVITAR" and row['Mercado (R$)'] > df_ranking['Mercado (R$)'].median():
                 anomalias.append({
@@ -409,7 +356,6 @@ class MarketAnalyzer:
                     "mensagem": "Mercado volumoso, mas sua competitividade é baixa. Reavaliar portfólio.",
                     "severidade": "Baixa"
                 })
-
         return anomalias
 
     def gerar_plano_acao(self, categoria: str = None) -> List[Dict]:
@@ -446,7 +392,7 @@ class MarketAnalyzer:
             else:
                 rec_curta = "MONITORAR"
                 acao_imediata = "Acompanhar movimentação dos concorrentes semanalmente."
-
+            
             # Detalhes das ações
             if leitura == "Ticket OK":
                 acoes.append(f"✅ **Preço Competitivo**: Alinhado com o mercado (R$ {ticket_mercado:,.2f}).")
@@ -454,7 +400,6 @@ class MarketAnalyzer:
                 acoes.append(f"⚠️ **Preço Defasado**: R$ {(ticket_mercado - ticket_cliente):,.2f} abaixo da média.")
             else:
                 acoes.append(f"⚠️ **Preço Elevado**: R$ {(ticket_cliente - ticket_mercado):,.2f} acima da média.")
-
             acoes.append(f"🚀 **Ação Imediata**: {acao_imediata}")
             
             plano.append({

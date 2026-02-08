@@ -27,7 +27,8 @@ from utils.visualizations import (
     criar_grafico_cenarios,
     criar_grafico_crescimento,
     criar_gauge_score,
-    criar_comparacao_tickets
+    criar_comparacao_tickets,
+    criar_grafico_evolucao_subcategoria
 )
 
 # Configuração da página
@@ -220,11 +221,12 @@ def processar_excel(file):
                     )
                     count_cat += 1
                 
-        # 3. Mercado Subcategoria
+        # 3. Mercado Subcategoria (Suporte a dados mensais)
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
         
         col_sub_cat = find_col(df_sub, ["Categoria"])
         col_sub_name = find_col(df_sub, ["Subcategoria"])
+        col_sub_per = find_col(df_sub, ["Periodo", "Período"])
         col_sub_fat = find_col(df_sub, ["Faturamento"])
         col_sub_uni = find_col(df_sub, ["Unidades"])
 
@@ -233,9 +235,11 @@ def processar_excel(file):
             for _, row in df_sub.iterrows():
                 if pd.notna(row[col_sub_cat]) and pd.notna(row[col_sub_name]):
                     temp_analyzer.add_mercado_subcategoria(
-                        str(row[col_sub_cat]), str(row[col_sub_name]), 
-                        safe_float(row[col_sub_fat]) if col_sub_fat and col_sub_fat in row and pd.notna(row[col_sub_fat]) else 0, 
-                        int(safe_float(row[col_sub_uni])) if col_sub_uni and col_sub_uni in row and pd.notna(row[col_sub_uni]) else 0
+                        categoria=str(row[col_sub_cat]), 
+                        subcategoria=str(row[col_sub_name]), 
+                        faturamento=safe_float(row[col_sub_fat]) if col_sub_fat and col_sub_fat in row and pd.notna(row[col_sub_fat]) else 0, 
+                        unidades=int(safe_float(row[col_sub_uni])) if col_sub_uni and col_sub_uni in row and pd.notna(row[col_sub_uni]) else 0,
+                        periodo=str(row[col_sub_per]) if col_sub_per and col_sub_per in row and pd.notna(row[col_sub_per]) else None
                     )
                     count_sub += 1
         
@@ -935,7 +939,9 @@ with tab4:
 with tab5:
     st.markdown("## 📊 Análise Executiva e Simulações")
     
+    # Garantir que o ranking use dados consolidados
     df_ranking = analyzer.gerar_ranking()
+    
     if df_ranking.empty:
         st.info("📋 Importe ou adicione dados nas abas anteriores para visualizar a análise executiva.")
     else:
@@ -943,7 +949,8 @@ with tab5:
         col_rank1, col_rank2 = st.columns([1, 1])
         with col_rank1:
             st.markdown("### 🏆 Ranking de Oportunidades")
-            df_display = df_ranking[['Categoria Macro', 'Subcategoria', 'Score', 'Status']].copy()
+            # O gerar_ranking() já deve retornar dados consolidados, mas vamos garantir a exibição única
+            df_display = df_ranking[['Categoria Macro', 'Subcategoria', 'Score', 'Status']].drop_duplicates(subset=['Categoria Macro', 'Subcategoria']).copy()
             st.dataframe(df_display, use_container_width=True)
         with col_rank2:
             st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True)
@@ -957,8 +964,8 @@ with tab5:
         row_foco = df_ranking[df_ranking["Subcategoria"] == sub_foco_dashboard].iloc[0]
         st.session_state["selected_macro_cat"] = row_foco["Categoria Macro"]
         
-        # Simulação de Cenários
-        st.markdown("### 💰 Simulação de Cenários")
+        # Simulador de Cenário
+        st.markdown("### 💰 Simulador de Cenário")
         
         with st.expander("⚙️ Ajustar Metas de Share", expanded=False):
             col_s1, col_s2, col_s3 = st.columns(3)
@@ -1016,6 +1023,17 @@ with tab5:
         with c_tab2:
             st.plotly_chart(criar_grafico_cenarios(df_cen), use_container_width=True)
         
+        # Evolução Mensal da Subcategoria
+        st.markdown("---")
+        st.markdown(f"### 📅 Evolução Mensal: {sub_foco_dashboard}")
+        
+        # Obter dados mensais da subcategoria
+        dados_mensais_sub = pd.DataFrame(analyzer.mercado_subcategorias.get(row_foco['Categoria Macro'], []))
+        if not dados_mensais_sub.empty:
+            st.plotly_chart(criar_grafico_evolucao_subcategoria(dados_mensais_sub, sub_foco_dashboard), use_container_width=True)
+        else:
+            st.info("Dados mensais detalhados não disponíveis para esta subcategoria.")
+
         # Tendência e Projeção
         st.markdown("---")
         st.markdown("### 📈 Tendência e Projeção de Demanda")
@@ -1155,7 +1173,15 @@ with tab5:
         st.markdown("---")
         st.markdown("### 🚨 Dashboard de Anomalias e Oportunidades")
         
-        anomalias = analyzer.identificar_anomalias(row_foco['Categoria Macro'])
+        anomalias_raw = analyzer.identificar_anomalias(row_foco['Categoria Macro'])
+        # Consolidar anomalias por subcategoria e tipo para evitar duplicidade
+        anomalias = []
+        seen_anom = set()
+        for a in anomalias_raw:
+            key = (a['subcategoria'], a['tipo'])
+            if key not in seen_anom:
+                anomalias.append(a)
+                seen_anom.add(key)
         
         if anomalias:
             anom_col1, anom_col2 = st.columns([2, 1])
@@ -1185,7 +1211,14 @@ with tab5:
         st.markdown("---")
         st.markdown("### 🎯 Matriz de Recomendação Automática (Ação Imediata)")
         
-        plano_completo = analyzer.gerar_plano_acao(row_foco['Categoria Macro'])
+        plano_raw = analyzer.gerar_plano_acao(row_foco['Categoria Macro'])
+        # Consolidar plano por subcategoria para evitar duplicidade
+        plano_completo = []
+        seen_sub = set()
+        for p in plano_raw:
+            if p['Subcategoria'] not in seen_sub:
+                plano_completo.append(p)
+                seen_sub.add(p['Subcategoria'])
         
         if plano_completo:
             # Criar uma tabela visual das recomendações

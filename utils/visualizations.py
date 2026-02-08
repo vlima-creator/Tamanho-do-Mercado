@@ -15,6 +15,14 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     if df.empty:
         return go.Figure()
     
+    # Garantir ordenação cronológica
+    try:
+        df = df.copy()
+        df['periodo_dt'] = pd.to_datetime(df['periodo'])
+        df = df.sort_values('periodo_dt')
+    except:
+        pass
+    
     fig = go.Figure()
     
     # Faturamento
@@ -65,6 +73,14 @@ def criar_grafico_ticket_medio(df: pd.DataFrame) -> go.Figure:
     """Cria gráfico de evolução do ticket médio"""
     if df.empty:
         return go.Figure()
+    
+    # Garantir ordenação cronológica
+    try:
+        df = df.copy()
+        df['periodo_dt'] = pd.to_datetime(df['periodo'])
+        df = df.sort_values('periodo_dt')
+    except:
+        pass
     
     fig = go.Figure()
     
@@ -313,6 +329,72 @@ def criar_comparacao_tickets(ticket_mercado: float, ticket_cliente: float,
         height=350,
         showlegend=True,
         legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    )
+    
+    return fig
+
+def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: str) -> go.Figure:
+    """Cria gráfico de evolução mensal para uma subcategoria específica"""
+    if df_mensal.empty:
+        return go.Figure()
+    
+    # Filtrar apenas a subcategoria desejada
+    df_sub = df_mensal[df_mensal['subcategoria'] == subcategoria].copy()
+    if df_sub.empty:
+        return go.Figure()
+        
+    # Ordenar por período se possível
+    try:
+        df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'])
+        df_sub = df_sub.sort_values('periodo_dt')
+    except:
+        pass
+
+    fig = go.Figure()
+    
+    # Faturamento
+    fig.add_trace(go.Scatter(
+        x=df_sub['periodo'],
+        y=df_sub['faturamento'],
+        name='Faturamento',
+        mode='lines+markers',
+        line=dict(color='#1E3A8A', width=3),
+        marker=dict(size=8),
+        yaxis='y1'
+    ))
+    
+    # Unidades
+    fig.add_trace(go.Scatter(
+        x=df_sub['periodo'],
+        y=df_sub['unidades'],
+        name='Unidades',
+        mode='lines+markers',
+        line=dict(color='#2ecc71', width=3),
+        marker=dict(size=8),
+        yaxis='y2'
+    ))
+    
+    fig.update_layout(
+        title=f'Evolução Mensal: {subcategoria}',
+        xaxis=dict(title='Período'),
+        yaxis=dict(
+            title='Faturamento (R$)',
+            side='left',
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.1)'
+        ),
+        yaxis2=dict(
+            title='Unidades',
+            side='right',
+            overlaying='y',
+            showgrid=False
+        ),
+        hovermode='x unified',
+        height=400,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#FFFFFF')
     )
     
     return fig
