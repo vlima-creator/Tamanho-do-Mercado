@@ -18,20 +18,27 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     # Garantir ordenação cronológica e continuidade
     try:
         df = df.copy()
-        df['periodo_dt'] = pd.to_datetime(df['periodo'])
+        # Converter para datetime, tratando erros
+        df['periodo_dt'] = pd.to_datetime(df['periodo'], errors='coerce')
+        df = df.dropna(subset=['periodo_dt'])
         df = df.sort_values('periodo_dt')
         
-        # Criar range completo de meses para evitar buracos no gráfico
-        min_date = df['periodo_dt'].min()
-        max_date = df['periodo_dt'].max()
-        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
-        
-        df_full = pd.DataFrame({'periodo_dt': all_months})
-        df = pd.merge(df_full, df, on='periodo_dt', how='left')
-        # Preencher o nome do período para os meses novos
-        df['periodo'] = df['periodo_dt'].dt.strftime('%Y-%m')
-    except:
-        pass
+        if not df.empty:
+            # Criar range completo de meses para evitar buracos no gráfico
+            min_date = df['periodo_dt'].min()
+            max_date = df['periodo_dt'].max()
+            all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+            
+            df_full = pd.DataFrame({'periodo_dt': all_months})
+            # Merge mantendo os dados originais
+            df = pd.merge(df_full, df, on='periodo_dt', how='left')
+            # Preencher o nome do período formatado
+            df['periodo'] = df['periodo_dt'].dt.strftime('%Y-%m')
+            # Preencher faturamento e unidades com 0 para os meses vazios
+            df['faturamento'] = df['faturamento'].fillna(0)
+            df['unidades'] = df['unidades'].fillna(0)
+    except Exception as e:
+        print(f"Erro no processamento do gráfico: {e}")
     
     fig = go.Figure()
     
@@ -355,19 +362,25 @@ def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: s
         
     # Ordenar por período e garantir continuidade
     try:
-        df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'])
+        df_sub = df_sub.copy()
+        df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'], errors='coerce')
+        df_sub = df_sub.dropna(subset=['periodo_dt'])
         df_sub = df_sub.sort_values('periodo_dt')
         
-        # Criar range completo de meses
-        min_date = df_sub['periodo_dt'].min()
-        max_date = df_sub['periodo_dt'].max()
-        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
-        
-        df_full = pd.DataFrame({'periodo_dt': all_months})
-        df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
-        df_sub['periodo'] = df_sub['periodo_dt'].dt.strftime('%Y-%m')
-    except:
-        pass
+        if not df_sub.empty:
+            # Criar range completo de meses
+            min_date = df_sub['periodo_dt'].min()
+            max_date = df_sub['periodo_dt'].max()
+            all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+            
+            df_full = pd.DataFrame({'periodo_dt': all_months})
+            df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
+            df_sub['periodo'] = df_sub['periodo_dt'].dt.strftime('%Y-%m')
+            # Preencher faturamento e unidades com 0 para os meses vazios
+            df_sub['faturamento'] = df_sub['faturamento'].fillna(0)
+            df_sub['unidades'] = df_sub['unidades'].fillna(0)
+    except Exception as e:
+        print(f"Erro no processamento do gráfico sub: {e}")
 
     fig = go.Figure()
     
