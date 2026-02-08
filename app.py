@@ -512,6 +512,19 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     uploaded_file = st.file_uploader("Arraste ou selecione sua planilha", type=["xlsx"], key="excel_uploader_v5", label_visibility="collapsed")
+    
+    # Botão de Download do Modelo
+    modelo_path = os.path.join(os.path.dirname(__file__), "modelo_planilha.xlsx")
+    if os.path.exists(modelo_path):
+        with open(modelo_path, "rb") as f:
+            st.download_button(
+                label="📥 Baixar Modelo de Planilha",
+                data=f,
+                file_name="modelo_inteligencia_mercado.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+    
     if uploaded_file is not None:
         if st.button("🚀 Processar Planilha", use_container_width=True):
             if processar_excel(uploaded_file):
