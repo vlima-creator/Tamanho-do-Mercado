@@ -76,17 +76,12 @@ def safe_float(val):
     if pd.isna(val): return 0.0
     if isinstance(val, (int, float)): return float(val)
     try:
-        # Remove R$, pontos de milhar e troca vírgula por ponto
         s = str(val).replace('R$', '').replace('$', '').strip()
         if not s: return 0.0
-        # Lógica para formato brasileiro: 1.234,56 -> 1234.56
         if ',' in s and '.' in s:
-            if s.rfind(',') > s.rfind('.'): # 1.234,56
-                s = s.replace('.', '').replace(',', '.')
-            else: # 1,234.56
-                s = s.replace(',', '')
-        elif ',' in s:
-            s = s.replace(',', '.')
+            if s.rfind(',') > s.rfind('.'): s = s.replace('.', '').replace(',', '.')
+            else: s = s.replace(',', '')
+        elif ',' in s: s = s.replace(',', '.')
         return float(s)
     except:
         return 0.0
@@ -157,7 +152,6 @@ SVG_ICONS = {
 
 # --- INICIALIZAÇÃO ---
 
-# Garantir que o analyzer esteja sempre na sessão e atualizado
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
 
@@ -200,9 +194,6 @@ def processar_excel(file):
         
         def find_col(df, possible_names):
             for col in df.columns:
-                if any(name.lower() == str(col).lower().strip() for name in possible_names):
-                    return col
-            for col in df.columns:
                 if any(name.lower() in str(col).lower() for name in possible_names):
                     return col
             return None
@@ -216,14 +207,14 @@ def processar_excel(file):
         if col_cat and col_per:
             for _, row in df_cat.iterrows():
                 if pd.notna(row[col_cat]) and pd.notna(row[col_per]):
-                    cat_val = str(row[col_cat]).strip()
                     raw_per = row[col_per]
                     per_val = raw_per.strftime('%d/%m/%Y') if isinstance(raw_per, datetime) else str(raw_per).strip()
-                    fat_val = safe_float(row[col_fat]) if col_fat and col_fat in row else 0.0
-                    uni_val = int(safe_float(row[col_uni])) if col_uni and col_uni in row else 0
-                    if cat_val and per_val:
-                        temp_analyzer.add_mercado_categoria(cat_val, per_val, fat_val, uni_val)
-                        count_cat += 1
+                    temp_analyzer.add_mercado_categoria(
+                        str(row[col_cat]), per_val, 
+                        safe_float(row[col_fat]) if col_fat and col_fat in row else 0, 
+                        int(safe_float(row[col_uni])) if col_uni and col_uni in row else 0
+                    )
+                    count_cat += 1
                 
         # 3. Mercado Subcategoria (SUPORTE MENSAL)
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
@@ -300,11 +291,10 @@ def main():
     analyzer = st.session_state.analyzer
     st.title(f"Dashboard: {analyzer.cliente_data['empresa']}")
     
-    # Layout Original de Tabs
+    # Layout de Tabs
     tab1, tab2, tab3 = st.tabs(["📈 Dashboard de Oportunidades", "📊 Gestão de Categorias", "📝 Relatórios"])
 
     with tab1:
-        # Layout Original de Cards
         col1, col2, col3, col4 = st.columns(4)
         with col1: st.markdown(criar_metric_card(SVG_ICONS["dollar"], "Faturamento 3M", f"R$ {format_br(analyzer.cliente_data['faturamento_3m'])}"), unsafe_allow_html=True)
         with col2: st.markdown(criar_metric_card(SVG_ICONS["box"], "Unidades 3M", f"{analyzer.cliente_data['unidades_3m']:,}".replace(",", ".")), unsafe_allow_html=True)
@@ -318,7 +308,6 @@ def main():
             with col_rank: st.dataframe(df_ranking[['Subcategoria', 'Status', 'Score', 'Mercado (R$)']], use_container_width=True)
             with col_chart: st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True, key="dash_rank")
         
-        # Adição discreta da evolução mensal (Nova funcionalidade integrada ao layout antigo)
         if analyzer.mercado_subcategorias:
             with st.expander("📉 Ver Evolução Mensal Detalhada"):
                 all_subs = []
@@ -332,7 +321,7 @@ def main():
                     hist = analyzer.mercado_subcategorias[cat_sel][sub_sel]
                     df_hist = pd.DataFrame(hist)
                     if len(df_hist) > 1:
-                        st.plotly_chart(px.line(df_hist, x="periodo", y="faturamento", title=f"Tendência: {sub_sel}"), use_container_width=True, key="dash_evol")
+                        st.plotly_chart(px.line(df_hist, x="periodo", y="faturamento", title=f"Evolução: {sub_sel}"), use_container_width=True, key="dash_evol")
 
     with tab2:
         st.header("📊 Gestão e Evolução de Categorias")
