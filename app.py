@@ -197,7 +197,10 @@ def processar_excel(file):
         )
         
         # 2. Mercado Categoria
-        df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
+        # Tentar ler sem pular linhas primeiro (formato do modelo), se falhar ou vier vazio, tenta com skiprows
+        df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria")
+        if df_cat.empty or "Categoria" not in df_cat.columns:
+            df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
         
         def find_col(df, possible_names):
             for col in df.columns:
@@ -222,7 +225,10 @@ def processar_excel(file):
                     count_cat += 1
                 
         # 3. Mercado Subcategoria (Suporte a dados mensais)
-        df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
+        # Tentar ler sem pular linhas primeiro (formato do modelo)
+        df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria")
+        if df_sub.empty or ("Categoria" not in "".join(df_sub.columns) and "Subcategoria" not in "".join(df_sub.columns)):
+            df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
         
         col_sub_cat = find_col(df_sub, ["Categoria"])
         col_sub_name = find_col(df_sub, ["Subcategoria"])
