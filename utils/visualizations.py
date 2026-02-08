@@ -18,28 +18,29 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     # Garantir ordenação cronológica e continuidade
     try:
         df = df.copy()
-        # Converter para datetime para ordenação, mas manter o original para o merge
-        df['periodo_dt'] = pd.to_datetime(df['periodo'], errors='coerce')
+        # Normalizar todas as datas para o primeiro dia do mês para garantir o merge
+        df['periodo_dt'] = pd.to_datetime(df['periodo'], errors='coerce').dt.to_period('M').dt.to_timestamp()
         df = df.dropna(subset=['periodo_dt'])
         
-        # Criar range completo de meses
-        min_date = df['periodo_dt'].min()
-        max_date = df['periodo_dt'].max()
-        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
-        
-        df_full = pd.DataFrame({'periodo_dt': all_months})
-        # Merge usando a coluna de data para garantir precisão
-        df = pd.merge(df_full, df, on='periodo_dt', how='left')
-        
-        # Ordenar pelo campo de data
-        df = df.sort_values('periodo_dt')
-        
-        # Atualizar a coluna 'periodo' para exibição no eixo X
-        df['periodo'] = df['periodo_dt'].dt.strftime('%Y-%m')
-        
-        # Preencher faturamento e unidades com 0 apenas onde for NaN (meses faltantes)
-        df['faturamento'] = pd.to_numeric(df['faturamento']).fillna(0)
-        df['unidades'] = pd.to_numeric(df['unidades']).fillna(0)
+        if not df.empty:
+            # Criar range completo de meses
+            min_date = df['periodo_dt'].min()
+            max_date = df['periodo_dt'].max()
+            all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+            
+            df_full = pd.DataFrame({'periodo_dt': all_months})
+            # Merge usando a data normalizada
+            df = pd.merge(df_full, df, on='periodo_dt', how='left')
+            
+            # Ordenar pelo campo de data
+            df = df.sort_values('periodo_dt')
+            
+            # Atualizar a coluna 'periodo' para exibição no eixo X (Ex: Jan 2025)
+            df['periodo_label'] = df['periodo_dt'].dt.strftime('%b %Y')
+            
+            # Preencher faturamento e unidades com 0 apenas onde for NaN
+            df['faturamento'] = pd.to_numeric(df['faturamento']).fillna(0)
+            df['unidades'] = pd.to_numeric(df['unidades']).fillna(0)
     except Exception as e:
         pass
     
@@ -47,7 +48,7 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     
     # Faturamento
     fig.add_trace(go.Scatter(
-        x=df['periodo'],
+        x=df['periodo_label'] if 'periodo_label' in df.columns else df['periodo'],
         y=df['faturamento'],
         name='Faturamento',
         mode='lines+markers',
@@ -58,7 +59,7 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     
     # Unidades
     fig.add_trace(go.Scatter(
-        x=df['periodo'],
+        x=df['periodo_label'] if 'periodo_label' in df.columns else df['periodo'],
         y=df['unidades'],
         name='Unidades',
         mode='lines+markers',
@@ -366,26 +367,28 @@ def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: s
     # Ordenar por período e garantir continuidade
     try:
         df_sub = df_sub.copy()
-        df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'], errors='coerce')
+        # Normalizar datas para o primeiro dia do mês
+        df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'], errors='coerce').dt.to_period('M').dt.to_timestamp()
         df_sub = df_sub.dropna(subset=['periodo_dt'])
         
-        # Criar range completo de meses
-        min_date = df_sub['periodo_dt'].min()
-        max_date = df_sub['periodo_dt'].max()
-        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
-        
-        df_full = pd.DataFrame({'periodo_dt': all_months})
-        df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
-        
-        # Ordenar pelo campo de data
-        df_sub = df_sub.sort_values('periodo_dt')
-        
-        # Atualizar a coluna 'periodo' para exibição
-        df_sub['periodo'] = df_sub['periodo_dt'].dt.strftime('%Y-%m')
-        
-        # Preencher faturamento e unidades com 0 apenas onde for NaN
-        df_sub['faturamento'] = pd.to_numeric(df_sub['faturamento']).fillna(0)
-        df_sub['unidades'] = pd.to_numeric(df_sub['unidades']).fillna(0)
+        if not df_sub.empty:
+            # Criar range completo de meses
+            min_date = df_sub['periodo_dt'].min()
+            max_date = df_sub['periodo_dt'].max()
+            all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+            
+            df_full = pd.DataFrame({'periodo_dt': all_months})
+            df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
+            
+            # Ordenar pelo campo de data
+            df_sub = df_sub.sort_values('periodo_dt')
+            
+            # Atualizar a coluna para exibição
+            df_sub['periodo_label'] = df_sub['periodo_dt'].dt.strftime('%b %Y')
+            
+            # Preencher faturamento e unidades com 0 apenas onde for NaN
+            df_sub['faturamento'] = pd.to_numeric(df_sub['faturamento']).fillna(0)
+            df_sub['unidades'] = pd.to_numeric(df_sub['unidades']).fillna(0)
     except Exception as e:
         pass
     
@@ -393,7 +396,7 @@ def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: s
     
     # Faturamento
     fig.add_trace(go.Scatter(
-        x=df_sub['periodo'],
+        x=df_sub['periodo_label'] if 'periodo_label' in df_sub.columns else df_sub['periodo'],
         y=df_sub['faturamento'],
         name='Faturamento',
         mode='lines+markers',
@@ -404,7 +407,7 @@ def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: s
     
     # Unidades
     fig.add_trace(go.Scatter(
-        x=df_sub['periodo'],
+        x=df_sub['periodo_label'] if 'periodo_label' in df_sub.columns else df_sub['periodo'],
         y=df_sub['unidades'],
         name='Unidades',
         mode='lines+markers',
