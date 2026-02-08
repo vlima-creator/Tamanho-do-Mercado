@@ -15,7 +15,14 @@ class MarketAnalyzer:
     def __init__(self):
         self.cliente_data = {
             'cac': 0.0,
-            'investimento_mkt': 0.0
+            'investimento_mkt': 0.0,
+            'faturamento_3m': 0.0,
+            'unidades_3m': 0,
+            'margem': 0.0,
+            'ticket_medio': 0.0,
+            'empresa': '',
+            'categoria_principal': '',
+            'range_permitido': 0.20
         }
         # Estrutura: { 'Categoria Nome': [ {periodo, faturamento, unidades, ticket_medio} ] }
         self.mercado_categoria = {} 
@@ -28,20 +35,22 @@ class MarketAnalyzer:
                         cac: float = 0.0, investimento_mkt: float = 0.0):
         """Define dados do cliente"""
         self.cliente_data.update({
-            'empresa': empresa,
-            'categoria_principal': categoria,
-            'ticket_medio': ticket_medio if ticket_medio else (faturamento_3m / unidades_3m if unidades_3m > 0 else 0),
-            'margem': margem / 100 if margem > 1 else margem,
-            'faturamento_3m': faturamento_3m,
-            'unidades_3m': unidades_3m,
-            'range_permitido': range_permitido / 100 if range_permitido > 1 else range_permitido,
-            'ticket_custom': ticket_custom,
-            'cac': cac,
-            'investimento_mkt': investimento_mkt
+            'empresa': str(empresa),
+            'categoria_principal': str(categoria),
+            'ticket_medio': float(ticket_medio) if ticket_medio else (float(faturamento_3m) / float(unidades_3m) if unidades_3m and float(unidades_3m) > 0 else 0.0),
+            'margem': float(margem) / 100 if float(margem) > 1 else float(margem),
+            'faturamento_3m': float(faturamento_3m),
+            'unidades_3m': int(float(unidades_3m)) if unidades_3m else 0,
+            'range_permitido': float(range_permitido) / 100 if float(range_permitido) > 1 else float(range_permitido),
+            'ticket_custom': float(ticket_custom) if ticket_custom else None,
+            'cac': float(cac),
+            'investimento_mkt': float(investimento_mkt)
         })
         
     def add_mercado_categoria(self, categoria: str, periodo: str, faturamento: float, unidades: int):
         """Adiciona dados de mercado para uma categoria macro"""
+        if not categoria: return
+        categoria = str(categoria)
         if categoria not in self.mercado_categoria:
             self.mercado_categoria[categoria] = []
         
@@ -50,7 +59,7 @@ class MarketAnalyzer:
         ticket_medio = faturamento / unidades if unidades > 0 else 0
         
         self.mercado_categoria[categoria].append({
-            'periodo': periodo,
+            'periodo': str(periodo),
             'faturamento': faturamento,
             'unidades': unidades,
             'ticket_medio': ticket_medio
@@ -58,6 +67,10 @@ class MarketAnalyzer:
         
     def add_mercado_subcategoria(self, categoria: str, subcategoria: str, periodo: str, faturamento: float, unidades: int):
         """Adiciona dados de mercado mensais para uma subcategoria"""
+        if not categoria or not subcategoria: return
+        categoria = str(categoria)
+        subcategoria = str(subcategoria)
+        
         if categoria not in self.mercado_subcategorias:
             self.mercado_subcategorias[categoria] = {}
             
@@ -69,7 +82,7 @@ class MarketAnalyzer:
         ticket_medio = faturamento / unidades if unidades > 0 else 0
             
         self.mercado_subcategorias[categoria][subcategoria].append({
-            'periodo': periodo,
+            'periodo': str(periodo),
             'faturamento': faturamento,
             'unidades': unidades,
             'ticket_medio': ticket_medio
@@ -78,26 +91,25 @@ class MarketAnalyzer:
     def get_consolidado_6m(self, categoria: str, subcategoria: str) -> Dict:
         """Consolida os últimos 6 meses para a visão clássica de 6 meses"""
         if categoria not in self.mercado_subcategorias or subcategoria not in self.mercado_subcategorias[categoria]:
-            return {'faturamento_6m': 0, 'unidades_6m': 0, 'ticket_medio': 0}
+            return {'subcategoria': str(subcategoria), 'faturamento_6m': 0.0, 'unidades_6m': 0, 'ticket_medio': 0.0}
             
         historico = self.mercado_subcategorias[categoria][subcategoria]
         df = pd.DataFrame(historico)
         if df.empty:
-            return {'faturamento_6m': 0, 'unidades_6m': 0, 'ticket_medio': 0}
+            return {'subcategoria': str(subcategoria), 'faturamento_6m': 0.0, 'unidades_6m': 0, 'ticket_medio': 0.0}
             
-        # Tentar ordenar por data se possível
         try:
             df['dt'] = pd.to_datetime(df['periodo'], dayfirst=True, errors='coerce')
             df = df.sort_values('dt', ascending=False).head(6)
         except:
             df = df.tail(6)
             
-        faturamento_6m = df['faturamento'].sum()
-        unidades_6m = df['unidades'].sum()
-        ticket_medio = faturamento_6m / unidades_6m if unidades_6m > 0 else 0
+        faturamento_6m = float(df['faturamento'].sum())
+        unidades_6m = int(df['unidades'].sum())
+        ticket_medio = faturamento_6m / unidades_6m if unidades_6m > 0 else 0.0
         
         return {
-            'subcategoria': subcategoria,
+            'subcategoria': str(subcategoria),
             'faturamento_6m': faturamento_6m,
             'unidades_6m': unidades_6m,
             'ticket_medio': ticket_medio
@@ -108,32 +120,31 @@ class MarketAnalyzer:
         if categoria not in self.mercado_subcategorias:
             return 0.0
             
-        # Pegar o faturamento máximo de 6m entre todas as subcategorias desta categoria
         fats_6m = []
         for sub_nome in self.mercado_subcategorias[categoria]:
             cons = self.get_consolidado_6m(categoria, sub_nome)
             fats_6m.append(cons['faturamento_6m'])
             
         max_faturamento = max(fats_6m) if fats_6m else 1.0
-        g = faturamento_6m / max_faturamento if max_faturamento > 0 else 0
+        g = float(faturamento_6m) / max_faturamento if max_faturamento > 0 else 0.0
         
-        ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
-        range_pct = self.cliente_data.get('range_permitido', 0.20)
-        diff_pct = abs(ticket_cliente - ticket_mercado) / ticket_mercado if ticket_mercado > 0 else 1
+        ticket_cliente = float(self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0.0))
+        range_pct = float(self.cliente_data.get('range_permitido', 0.20))
+        diff_pct = abs(ticket_cliente - float(ticket_mercado)) / float(ticket_mercado) if ticket_mercado and float(ticket_mercado) > 0 else 1.0
         
-        u = 1.0 if diff_pct <= range_pct else (0.7 if ticket_cliente < ticket_mercado else 0.3)
-        t = self.cliente_data.get('margem', 0)
+        u = 1.0 if diff_pct <= range_pct else (0.7 if ticket_cliente < float(ticket_mercado) else 0.3)
+        t = float(self.cliente_data.get('margem', 0.0))
         
         score_final = (g * 0.4) + (u * 0.4) + (t * 0.2)
-        return min(1.0, score_final)
+        return float(min(1.0, score_final))
 
     def calcular_fit_ticket(self, ticket_mercado: float) -> Tuple[str, str]:
         """Calcula fit do ticket cliente vs mercado"""
-        ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
-        range_pct = self.cliente_data.get('range_permitido', 0.20)
+        ticket_cliente = float(self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0.0))
+        range_pct = float(self.cliente_data.get('range_permitido', 0.20))
         
-        limite_inferior = ticket_mercado * (1 - range_pct)
-        limite_superior = ticket_mercado * (1 + range_pct)
+        limite_inferior = float(ticket_mercado) * (1 - range_pct)
+        limite_superior = float(ticket_mercado) * (1 + range_pct)
         
         if limite_inferior <= ticket_cliente <= limite_superior:
             return "DENTRO", "Ticket OK"
@@ -144,9 +155,9 @@ class MarketAnalyzer:
 
     def calcular_status(self, score: float, fit_ticket: str) -> str:
         """Determina status baseado no score e fit de ticket"""
-        if score >= 0.7 and fit_ticket == "DENTRO":
+        if float(score) >= 0.7 and fit_ticket == "DENTRO":
             return "FOCO"
-        elif score >= 0.4 or fit_ticket == "DENTRO":
+        elif float(score) >= 0.4 or fit_ticket == "DENTRO":
             return "OK"
         else:
             return "EVITAR"
@@ -167,28 +178,33 @@ class MarketAnalyzer:
                     fit_status, leitura = self.calcular_fit_ticket(cons['ticket_medio'])
                     status = self.calcular_status(score, fit_status)
                     
+                    ticket_cliente = float(self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0.0))
+                    
                     ranking_data.append({
-                        'Categoria Macro': cat,
-                        'Subcategoria': sub_nome,
-                        'Mercado (R$)': cons['faturamento_6m'],
-                        'Unidades 6M': cons['unidades_6m'],
-                        'Ticket Mercado': cons['ticket_medio'],
-                        'Ticket Cliente': self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0),
-                        'Score': score,
-                        'Status': status,
-                        'Leitura': leitura
+                        'Categoria Macro': str(cat),
+                        'Subcategoria': str(sub_nome),
+                        'Mercado (R$)': float(cons['faturamento_6m']),
+                        'Unidades 6M': int(cons['unidades_6m']),
+                        'Ticket Mercado': float(cons['ticket_medio']),
+                        'Ticket Cliente': ticket_cliente,
+                        'Score': float(score),
+                        'Status': str(status),
+                        'Leitura': str(leitura)
                     })
         
         if not ranking_data: return pd.DataFrame()
-        return pd.DataFrame(ranking_data).sort_values('Score', ascending=False).reset_index(drop=True)
+        df = pd.DataFrame(ranking_data)
+        if 'Score' in df.columns:
+            df = df.sort_values('Score', ascending=False).reset_index(drop=True)
+        return df
 
     def simular_cenarios(self, categoria: str, subcategoria: str, custom_shares: Dict = None) -> Dict:
         """Simula cenários baseados na visão consolidada de 6 meses"""
         cons = self.get_consolidado_6m(categoria, subcategoria)
-        mercado_6m = cons['faturamento_6m']
-        margem = self.cliente_data.get('margem', 0)
-        fat_3m = self.cliente_data.get('faturamento_3m', 0)
-        faturamento_base_6m = float(fat_3m) * 2 if fat_3m else 0
+        mercado_6m = float(cons['faturamento_6m'])
+        margem = float(self.cliente_data.get('margem', 0.0))
+        fat_3m = float(self.cliente_data.get('faturamento_3m', 0.0))
+        faturamento_base_6m = fat_3m * 2
         
         shares = custom_shares or {
             'Conservador': {'share_alvo': 0.002, 'label': '0,2%'},
@@ -198,32 +214,32 @@ class MarketAnalyzer:
         
         cenarios_res = []
         for nome, info in shares.items():
-            receita_proj = mercado_6m * info['share_alvo']
+            receita_proj = mercado_6m * float(info['share_alvo'])
             lucro_proj = receita_proj * margem
             delta = receita_proj - faturamento_base_6m
-            crescimento = (delta / faturamento_base_6m * 100) if faturamento_base_6m > 0 else 0
+            crescimento = (delta / faturamento_base_6m * 100) if faturamento_base_6m > 0 else 0.0
             
             cenarios_res.append({
-                'Cenário': nome,
-                'Market Share': info['label'],
-                'Receita Projetada 6M': receita_proj,
-                'Lucro Projetado 6M': lucro_proj,
-                'Delta vs Atual': delta,
-                'Crescimento (%)': crescimento
+                'Cenário': str(nome),
+                'Market Share': str(info['label']),
+                'Receita Projetada 6M': float(receita_proj),
+                'Lucro Projetado 6M': float(lucro_proj),
+                'Delta vs Atual': float(delta),
+                'Crescimento (%)': float(crescimento)
             })
             
         return {
             'mercado_6m': mercado_6m,
-            'ticket_mercado': cons['ticket_medio'],
+            'ticket_mercado': float(cons['ticket_medio']),
             'cenarios': pd.DataFrame(cenarios_res)
         }
 
     def calcular_share_atual(self, mercado_6m: float) -> float:
         """Calcula share atual do cliente no mercado da subcategoria"""
-        faturamento_3m = float(self.cliente_data.get('faturamento_3m', 0))
+        faturamento_3m = float(self.cliente_data.get('faturamento_3m', 0.0))
         faturamento_6m_projetado = faturamento_3m * 2
-        if mercado_6m > 0:
-            return (faturamento_6m_projetado / mercado_6m) * 100
+        if mercado_6m and float(mercado_6m) > 0:
+            return (faturamento_6m_projetado / float(mercado_6m)) * 100
         return 0.0
 
     def calcular_confianca(self, categoria: str, subcategoria: str) -> Dict:
@@ -237,41 +253,41 @@ class MarketAnalyzer:
             motivos.append("Pouco histórico de mercado (menos de 3 meses)")
         
         cons = self.get_consolidado_6m(categoria, subcategoria)
-        ticket_mercado = cons['ticket_medio']
-        ticket_cliente = self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0)
+        ticket_mercado = float(cons['ticket_medio'])
+        ticket_cliente = float(self.cliente_data.get('ticket_custom') or self.cliente_data.get('ticket_medio', 0.0))
         if ticket_mercado > 0:
             diff = abs(ticket_cliente - ticket_mercado) / ticket_mercado
             if diff > 0.5:
                 score -= 20
                 motivos.append("Ticket muito fora da média do mercado (>50%)")
         
-        if self.cliente_data.get('faturamento_3m', 0) == 0:
+        if float(self.cliente_data.get('faturamento_3m', 0.0)) == 0:
             score -= 40
             motivos.append("Faturamento atual do cliente não informado")
             
         return {
-            "score": max(0, score),
-            "nivel": "Alta" if score >= 80 else ("Média" if score >= 50 else "Baixa"),
+            "score": int(max(0, score)),
+            "nivel": str("Alta" if score >= 80 else ("Média" if score >= 50 else "Baixa")),
             "motivos": motivos
         }
 
     def calcular_tendencia(self, categoria: str) -> Dict:
         """Calcula tendência baseada no histórico da categoria macro"""
         if categoria not in self.mercado_categoria or len(self.mercado_categoria[categoria]) < 2:
-            return {'tendencia': 'Estável', 'crescimento_mensal': 0, 'projecao_3m': 0}
+            return {'tendencia': 'Estável', 'crescimento_mensal': 0.0, 'projecao_3m': 0.0}
             
         df = pd.DataFrame(self.mercado_categoria[categoria])
-        ultimo_fat = df['faturamento'].iloc[-1]
-        penultimo_fat = df['faturamento'].iloc[-2]
-        crescimento = ((ultimo_fat - penultimo_fat) / penultimo_fat) if penultimo_fat > 0 else 0
+        ultimo_fat = float(df['faturamento'].iloc[-1])
+        penultimo_fat = float(df['faturamento'].iloc[-2])
+        crescimento = ((ultimo_fat - penultimo_fat) / penultimo_fat) if penultimo_fat > 0 else 0.0
         
         tendencia = "Alta" if crescimento > 0.05 else ("Baixa" if crescimento < -0.05 else "Estável")
         proj_3m = ultimo_fat * (1 + crescimento) * 3
         
         return {
-            'tendencia': tendencia,
-            'crescimento_mensal': crescimento * 100,
-            'projecao_3m': proj_3m
+            'tendencia': str(tendencia),
+            'crescimento_mensal': float(crescimento * 100),
+            'projecao_3m': float(proj_3m)
         }
 
     def identificar_anomalias(self, categoria: str) -> List[Dict]:
@@ -285,12 +301,12 @@ class MarketAnalyzer:
             
         if not subs: return []
         df_subs = pd.DataFrame(subs)
-        avg_ticket = df_subs['ticket_medio'].mean()
+        avg_ticket = float(df_subs['ticket_medio'].mean())
         
         for _, row in df_subs.iterrows():
-            if row['ticket_medio'] > avg_ticket * 1.5:
+            if float(row['ticket_medio']) > avg_ticket * 1.5:
                 anomalias.append({
-                    'Subcategoria': row['subcategoria'],
+                    'Subcategoria': str(row['subcategoria']),
                     'Tipo': 'Ticket Elevado',
                     'Impacto': 'Alto',
                     'Insight': 'Subcategoria com ticket muito acima da média. Verifique se há nicho premium.'
@@ -301,6 +317,7 @@ class MarketAnalyzer:
         """Gera recomendações estratégicas"""
         ranking = self.gerar_ranking(categoria)
         plano = []
+        if ranking.empty: return []
         for _, row in ranking.iterrows():
             acoes = []
             if row['Status'] == "FOCO":
@@ -311,10 +328,10 @@ class MarketAnalyzer:
                 acoes = ["Monitorar concorrência", "Manter operação eficiente"]
                 
             plano.append({
-                'Subcategoria': row['Subcategoria'],
-                'Prioridade': "Alta" if row['Status'] == "FOCO" else "Média",
+                'Subcategoria': str(row['Subcategoria']),
+                'Prioridade': str("Alta" if row['Status'] == "FOCO" else "Média"),
                 'Ações': acoes,
-                'Cor': "#2ecc71" if row['Status'] == "FOCO" else "#f1c40f",
-                'Score': row['Score']
+                'Cor': str("#2ecc71" if row['Status'] == "FOCO" else "#f1c40f"),
+                'Score': float(row['Score'])
             })
         return plano
