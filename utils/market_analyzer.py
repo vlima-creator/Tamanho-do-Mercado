@@ -289,8 +289,11 @@ class MarketAnalyzer:
     def calcular_tendencia(self, categoria: str, subcategoria: str = None) -> Dict:
         """Calcula tendência de crescimento baseada no histórico da categoria ou subcategoria"""
         if subcategoria:
-            # Filtrar dados mensais apenas da subcategoria específica
-            historico = [item for item in self.mercado_subcategorias_mensal if item['subcategoria'] == subcategoria]
+            # Filtrar dados mensais apenas da subcategoria específica dentro da categoria macro
+            if categoria in self.mercado_subcategorias:
+                historico = [item for item in self.mercado_subcategorias[categoria] if item['subcategoria'] == subcategoria]
+            else:
+                historico = []
         else:
             historico = self.mercado_categoria.get(categoria, [])
             
