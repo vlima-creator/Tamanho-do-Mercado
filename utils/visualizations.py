@@ -15,11 +15,21 @@ def criar_grafico_evolucao_categoria(df: pd.DataFrame) -> go.Figure:
     if df.empty:
         return go.Figure()
     
-    # Garantir ordenação cronológica
+    # Garantir ordenação cronológica e continuidade
     try:
         df = df.copy()
         df['periodo_dt'] = pd.to_datetime(df['periodo'])
         df = df.sort_values('periodo_dt')
+        
+        # Criar range completo de meses para evitar buracos no gráfico
+        min_date = df['periodo_dt'].min()
+        max_date = df['periodo_dt'].max()
+        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+        
+        df_full = pd.DataFrame({'periodo_dt': all_months})
+        df = pd.merge(df_full, df, on='periodo_dt', how='left')
+        # Preencher o nome do período para os meses novos
+        df['periodo'] = df['periodo_dt'].dt.strftime('%Y-%m')
     except:
         pass
     
@@ -343,10 +353,19 @@ def criar_grafico_evolucao_subcategoria(df_mensal: pd.DataFrame, subcategoria: s
     if df_sub.empty:
         return go.Figure()
         
-    # Ordenar por período se possível
+    # Ordenar por período e garantir continuidade
     try:
         df_sub['periodo_dt'] = pd.to_datetime(df_sub['periodo'])
         df_sub = df_sub.sort_values('periodo_dt')
+        
+        # Criar range completo de meses
+        min_date = df_sub['periodo_dt'].min()
+        max_date = df_sub['periodo_dt'].max()
+        all_months = pd.date_range(start=min_date, end=max_date, freq='MS')
+        
+        df_full = pd.DataFrame({'periodo_dt': all_months})
+        df_sub = pd.merge(df_full, df_sub, on='periodo_dt', how='left')
+        df_sub['periodo'] = df_sub['periodo_dt'].dt.strftime('%Y-%m')
     except:
         pass
 

@@ -1267,10 +1267,10 @@ with tab5:
                     """, unsafe_allow_html=True)
         
         # ==========================================
-        # NOVO: SIMULADOR WHAT-IF (O que acontece se...?)
+        # NOVO: SIMULADOR DE CENÁRIO
         # ==========================================
         st.markdown("---")
-        st.markdown("### 🔮 Simulador What-if (O que acontece se...?)")
+        st.markdown("### 🔮 Simulador de Cenário")
         
         with st.expander("⚙️ Simular Mudanças de Preço e Volume", expanded=False):
             sim_col1, sim_col2, sim_col3 = st.columns(3)
