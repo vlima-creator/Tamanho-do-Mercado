@@ -76,12 +76,17 @@ def safe_float(val):
     if pd.isna(val): return 0.0
     if isinstance(val, (int, float)): return float(val)
     try:
+        # Remove R$, pontos de milhar e troca vírgula por ponto
         s = str(val).replace('R$', '').replace('$', '').strip()
         if not s: return 0.0
+        # Lógica para formato brasileiro: 1.234,56 -> 1234.56
         if ',' in s and '.' in s:
-            if s.rfind(',') > s.rfind('.'): s = s.replace('.', '').replace(',', '.')
-            else: s = s.replace(',', '')
-        elif ',' in s: s = s.replace(',', '.')
+            if s.rfind(',') > s.rfind('.'): # 1.234,56
+                s = s.replace('.', '').replace(',', '.')
+            else: # 1,234.56
+                s = s.replace(',', '')
+        elif ',' in s:
+            s = s.replace(',', '.')
         return float(s)
     except:
         return 0.0
@@ -152,6 +157,7 @@ SVG_ICONS = {
 
 # --- INICIALIZAÇÃO ---
 
+# Garantir que o analyzer esteja sempre na sessão e atualizado
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
 
@@ -219,7 +225,7 @@ def processar_excel(file):
                         temp_analyzer.add_mercado_categoria(cat_val, per_val, fat_val, uni_val)
                         count_cat += 1
                 
-        # 3. Mercado Subcategoria
+        # 3. Mercado Subcategoria (SUPORTE MENSAL)
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
         
         col_sub_cat = find_col(df_sub, ["Categoria"])
@@ -243,7 +249,7 @@ def processar_excel(file):
                     count_sub += 1
         
         st.session_state.analyzer = temp_analyzer
-        st.session_state['last_upload_info'] = f"✅ **{empresa}** importada com sucesso! ({count_cat} registros de categoria, {count_sub} de subcategoria)"
+        st.session_state['last_upload_info'] = f"✅ **{empresa}** importada com sucesso! ({count_cat} categorias, {count_sub} subcategorias)"
         return True
     except Exception as e:
         st.error(f"❌ Erro no processamento: {str(e)}")
@@ -275,14 +281,12 @@ def main():
         st.title("📊 Market Intelligence")
         st.markdown("---")
         
-        # Use um formulário para o upload para evitar recarregamentos constantes
         with st.form("upload_form"):
             uploaded_file = st.file_uploader("Arraste sua planilha Excel aqui", type=["xlsx"])
             submit_button = st.form_submit_button("Processar Planilha")
             if submit_button and uploaded_file:
                 if processar_excel(uploaded_file):
                     st.success("Planilha processada!")
-                    # Removido st.rerun() para evitar loop infinito; o Streamlit atualizará o estado
         
         if 'last_upload_info' in st.session_state:
             st.info(st.session_state['last_upload_info'])
@@ -296,9 +300,11 @@ def main():
     analyzer = st.session_state.analyzer
     st.title(f"Dashboard: {analyzer.cliente_data['empresa']}")
     
+    # Layout Original de Tabs
     tab1, tab2, tab3 = st.tabs(["📈 Dashboard de Oportunidades", "📊 Gestão de Categorias", "📝 Relatórios"])
 
     with tab1:
+        # Layout Original de Cards
         col1, col2, col3, col4 = st.columns(4)
         with col1: st.markdown(criar_metric_card(SVG_ICONS["dollar"], "Faturamento 3M", f"R$ {format_br(analyzer.cliente_data['faturamento_3m'])}"), unsafe_allow_html=True)
         with col2: st.markdown(criar_metric_card(SVG_ICONS["box"], "Unidades 3M", f"{analyzer.cliente_data['unidades_3m']:,}".replace(",", ".")), unsafe_allow_html=True)
@@ -312,20 +318,21 @@ def main():
             with col_rank: st.dataframe(df_ranking[['Subcategoria', 'Status', 'Score', 'Mercado (R$)']], use_container_width=True)
             with col_chart: st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True, key="dash_rank")
         
+        # Adição discreta da evolução mensal (Nova funcionalidade integrada ao layout antigo)
         if analyzer.mercado_subcategorias:
-            st.markdown("### 📉 Evolução Mensal das Subcategorias")
-            all_subs = []
-            for cat in analyzer.mercado_subcategorias:
-                for sub in analyzer.mercado_subcategorias[cat]:
-                    all_subs.append(f"{cat} | {sub}")
-            
-            sel_sub_full = st.selectbox("Selecione para ver evolução:", all_subs)
-            if sel_sub_full:
-                cat_sel, sub_sel = sel_sub_full.split(" | ")
-                hist = analyzer.mercado_subcategorias[cat_sel][sub_sel]
-                df_hist = pd.DataFrame(hist)
-                if len(df_hist) > 1:
-                    st.plotly_chart(px.line(df_hist, x="periodo", y="faturamento", title=f"Evolução: {sub_sel}"), use_container_width=True, key="dash_evol")
+            with st.expander("📉 Ver Evolução Mensal Detalhada"):
+                all_subs = []
+                for cat in analyzer.mercado_subcategorias:
+                    for sub in analyzer.mercado_subcategorias[cat]:
+                        all_subs.append(f"{cat} | {sub}")
+                
+                sel_sub_full = st.selectbox("Selecione a subcategoria:", all_subs, key="evol_sel")
+                if sel_sub_full:
+                    cat_sel, sub_sel = sel_sub_full.split(" | ")
+                    hist = analyzer.mercado_subcategorias[cat_sel][sub_sel]
+                    df_hist = pd.DataFrame(hist)
+                    if len(df_hist) > 1:
+                        st.plotly_chart(px.line(df_hist, x="periodo", y="faturamento", title=f"Tendência: {sub_sel}"), use_container_width=True, key="dash_evol")
 
     with tab2:
         st.header("📊 Gestão e Evolução de Categorias")
@@ -339,7 +346,7 @@ def main():
     with tab3:
         st.header("📝 Relatórios e Exportação")
         if st.button("Gerar Relatório PDF"):
-            st.info("Funcionalidade de PDF sendo preparada...")
+            st.info("Funcionalidade de PDF disponível na versão completa.")
 
 if __name__ == "__main__":
     main()
