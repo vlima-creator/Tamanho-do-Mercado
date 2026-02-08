@@ -76,17 +76,12 @@ def safe_float(val):
     if pd.isna(val): return 0.0
     if isinstance(val, (int, float)): return float(val)
     try:
-        # Remove R$, pontos de milhar e troca vírgula por ponto
         s = str(val).replace('R$', '').replace('$', '').strip()
         if not s: return 0.0
-        # Lógica para formato brasileiro: 1.234,56 -> 1234.56
         if ',' in s and '.' in s:
-            if s.rfind(',') > s.rfind('.'): # 1.234,56
-                s = s.replace('.', '').replace(',', '.')
-            else: # 1,234.56
-                s = s.replace(',', '')
-        elif ',' in s:
-            s = s.replace(',', '.')
+            if s.rfind(',') > s.rfind('.'): s = s.replace('.', '').replace(',', '.')
+            else: s = s.replace(',', '')
+        elif ',' in s: s = s.replace(',', '.')
         return float(s)
     except:
         return 0.0
@@ -157,18 +152,8 @@ SVG_ICONS = {
 
 # --- INICIALIZAÇÃO ---
 
-# Garantir que o analyzer esteja sempre na sessão e atualizado
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = MarketAnalyzer()
-else:
-    # Verificar se o analyzer na sessão tem os métodos mais recentes
-    if not hasattr(st.session_state.analyzer, 'identificar_anomalias'):
-        old_data = st.session_state.analyzer
-        new_analyzer = MarketAnalyzer()
-        new_analyzer.cliente_data = getattr(old_data, 'cliente_data', {})
-        new_analyzer.mercado_categoria = getattr(old_data, 'mercado_categoria', {})
-        new_analyzer.mercado_subcategorias = getattr(old_data, 'mercado_subcategorias', {})
-        st.session_state.analyzer = new_analyzer
 
 # --- LÓGICA DE IMPORTAÇÃO EXCEL ---
 
@@ -234,7 +219,7 @@ def processar_excel(file):
                         temp_analyzer.add_mercado_categoria(cat_val, per_val, fat_val, uni_val)
                         count_cat += 1
                 
-        # 3. Mercado Subcategoria (MENSAL HÍBRIDO)
+        # 3. Mercado Subcategoria
         df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
         
         col_sub_cat = find_col(df_sub, ["Categoria"])
@@ -247,8 +232,7 @@ def processar_excel(file):
         if col_sub_cat and col_sub_name:
             for _, row in df_sub.iterrows():
                 if pd.notna(row[col_sub_cat]) and pd.notna(row[col_sub_name]):
-                    # Se tiver coluna de período, trata como mensal
-                    raw_per = row[col_sub_per] if col_sub_per and col_sub_per in row else "Consolidado 6M"
+                    raw_per = row[col_sub_per] if col_sub_per and col_sub_per in row and pd.notna(row[col_sub_per]) else "Consolidado 6M"
                     per_val = raw_per.strftime('%d/%m/%Y') if isinstance(raw_per, datetime) else str(raw_per).strip()
                     
                     temp_analyzer.add_mercado_subcategoria(
@@ -259,41 +243,26 @@ def processar_excel(file):
                     count_sub += 1
         
         st.session_state.analyzer = temp_analyzer
-        st.session_state['data_version'] = datetime.now().timestamp()
-        
-        detalhes = []
-        if fat_3m > 0: detalhes.append(f"Faturamento: {format_br(fat_3m)}")
-        if ticket_medio > 0: detalhes.append(f"Ticket: {format_br(ticket_medio)}")
-        
-        info_msg = f"✅ **{empresa}** importada com sucesso!\n\n"
-        info_msg += f"- 👤 Dados Cliente: {', '.join(detalhes) if detalhes else 'OK'}\n"
-        info_msg += f"- 📈 Categorias Macro: {count_cat} registros\n"
-        info_msg += f"- 🎯 Subcategorias: {count_sub} registros"
-        
-        st.session_state['last_upload_info'] = info_msg
+        st.session_state['last_upload_info'] = f"✅ **{empresa}** importada com sucesso! ({count_cat} registros de categoria, {count_sub} de subcategoria)"
         return True
     except Exception as e:
         st.error(f"❌ Erro no processamento: {str(e)}")
-        st.info("Dica: Verifique se as abas 'Cliente', 'Mercado_Categoria' e 'Mercado_Subcategoria' existem.")
         return False
 
 # --- CSS CUSTOMIZADO DARK THEME ---
 st.markdown("""
 <style>
-    /* Reset e Base */
     .stApp { background-color: #000000 !important; }
     :root { --accent-blue: #1E3A8A; --accent-blue-hover: #1e40af; }
-    
-    /* Tabs Customizadas */
     .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: transparent; }
     .stTabs [data-baseweb="tab"] {
-        height: 50px; white-space: pre-wrap; background-color: #0a0a0a;
-        border-radius: 8px 8px 0px 0px; color: #666; font-weight: 400;
+        height: 50px; background-color: #0a0a0a;
+        border-radius: 8px 8px 0px 0px; color: #666;
         border: 1px solid #1a1a1a; padding: 10px 20px;
     }
     .stTabs [aria-selected="true"] {
         background-color: #1a1a1a !important; color: #FFFFFF !important;
-        border-bottom: 2px solid var(--accent-blue) !important; font-weight: 600 !important;
+        border-bottom: 2px solid var(--accent-blue) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -306,12 +275,14 @@ def main():
         st.title("📊 Market Intelligence")
         st.markdown("---")
         
-        with st.expander("📥 Importar Dados", expanded=True):
+        # Use um formulário para o upload para evitar recarregamentos constantes
+        with st.form("upload_form"):
             uploaded_file = st.file_uploader("Arraste sua planilha Excel aqui", type=["xlsx"])
-            if uploaded_file:
+            submit_button = st.form_submit_button("Processar Planilha")
+            if submit_button and uploaded_file:
                 if processar_excel(uploaded_file):
                     st.success("Planilha processada!")
-                    st.rerun()
+                    # Removido st.rerun() para evitar loop infinito; o Streamlit atualizará o estado
         
         if 'last_upload_info' in st.session_state:
             st.info(st.session_state['last_upload_info'])
@@ -323,35 +294,24 @@ def main():
         return
 
     analyzer = st.session_state.analyzer
-    
-    # Cabeçalho
     st.title(f"Dashboard: {analyzer.cliente_data['empresa']}")
-    st.caption(f"Categoria Principal: {analyzer.cliente_data['categoria_principal']}")
     
     tab1, tab2, tab3 = st.tabs(["📈 Dashboard de Oportunidades", "📊 Gestão de Categorias", "📝 Relatórios"])
 
     with tab1:
-        # Layout do Dashboard (Original)
         col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.markdown(criar_metric_card(SVG_ICONS["dollar"], "Faturamento 3M", f"R$ {format_br(analyzer.cliente_data['faturamento_3m'])}"), unsafe_allow_html=True)
-        with col2:
-            st.markdown(criar_metric_card(SVG_ICONS["box"], "Unidades 3M", f"{analyzer.cliente_data['unidades_3m']:,}".replace(",", ".")), unsafe_allow_html=True)
-        with col3:
-            st.markdown(criar_metric_card(SVG_ICONS["target"], "Ticket Médio", f"R$ {format_br(analyzer.cliente_data.get('ticket_custom') or analyzer.cliente_data['ticket_medio'])}"), unsafe_allow_html=True)
-        with col4:
-            st.markdown(criar_metric_card(SVG_ICONS["chart"], "Margem", f"{analyzer.cliente_data['margem']*100:.1f}%"), unsafe_allow_html=True)
+        with col1: st.markdown(criar_metric_card(SVG_ICONS["dollar"], "Faturamento 3M", f"R$ {format_br(analyzer.cliente_data['faturamento_3m'])}"), unsafe_allow_html=True)
+        with col2: st.markdown(criar_metric_card(SVG_ICONS["box"], "Unidades 3M", f"{analyzer.cliente_data['unidades_3m']:,}".replace(",", ".")), unsafe_allow_html=True)
+        with col3: st.markdown(criar_metric_card(SVG_ICONS["target"], "Ticket Médio", f"R$ {format_br(analyzer.cliente_data.get('ticket_custom') or analyzer.cliente_data['ticket_medio'])}"), unsafe_allow_html=True)
+        with col4: st.markdown(criar_metric_card(SVG_ICONS["chart"], "Margem", f"{analyzer.cliente_data['margem']*100:.1f}%"), unsafe_allow_html=True)
 
         st.markdown("### 🎯 Priorização de Subcategorias (6 Meses)")
         df_ranking = analyzer.gerar_ranking()
         if not df_ranking.empty:
             col_rank, col_chart = st.columns([1, 1])
-            with col_rank:
-                st.dataframe(df_ranking[['Subcategoria', 'Status', 'Score', 'Mercado (R$)']], use_container_width=True)
-            with col_chart:
-                st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True, key="dash_rank")
+            with col_rank: st.dataframe(df_ranking[['Subcategoria', 'Status', 'Score', 'Mercado (R$)']], use_container_width=True)
+            with col_chart: st.plotly_chart(criar_grafico_ranking_subcategorias(df_ranking), use_container_width=True, key="dash_rank")
         
-        # Se houver dados mensais, mostra uma prévia
         if analyzer.mercado_subcategorias:
             st.markdown("### 📉 Evolução Mensal das Subcategorias")
             all_subs = []
@@ -360,28 +320,26 @@ def main():
                     all_subs.append(f"{cat} | {sub}")
             
             sel_sub_full = st.selectbox("Selecione para ver evolução:", all_subs)
-            cat_sel, sub_sel = sel_sub_full.split(" | ")
-            hist = analyzer.mercado_subcategorias[cat_sel][sub_sel]
-            df_hist = pd.DataFrame(hist)
-            if len(df_hist) > 1:
-                st.plotly_chart(px.line(df_hist, x="periodo", y="faturamento", title=f"Evolução: {sub_sel}"), use_container_width=True, key="dash_evol")
+            if sel_sub_full:
+                cat_sel, sub_sel = sel_sub_full.split(" | ")
+                hist = analyzer.mercado_subcategorias[cat_sel][sub_sel]
+                df_hist = pd.DataFrame(hist)
+                if len(df_hist) > 1:
+                    st.plotly_chart(px.line(df_hist, x="periodo", y="faturamento", title=f"Evolução: {sub_sel}"), use_container_width=True, key="dash_evol")
 
     with tab2:
         st.header("📊 Gestão e Evolução de Categorias")
-        # Gráficos de evolução que o usuário gosta
         cats = list(analyzer.mercado_categoria.keys())
         if cats:
             for cat in cats:
                 with st.expander(f"Evolução: {cat}", expanded=True):
                     df_c = pd.DataFrame(analyzer.mercado_categoria[cat])
                     st.plotly_chart(criar_grafico_evolucao_categoria(df_c), use_container_width=True, key=f"evol_{cat}")
-        else:
-            st.warning("Sem dados de evolução de categoria.")
 
     with tab3:
         st.header("📝 Relatórios e Exportação")
         if st.button("Gerar Relatório PDF"):
-            st.info("Funcionalidade de PDF sendo preparada com os novos dados mensais...")
+            st.info("Funcionalidade de PDF sendo preparada...")
 
 if __name__ == "__main__":
     main()
