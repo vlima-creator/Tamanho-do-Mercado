@@ -197,10 +197,7 @@ def processar_excel(file):
         )
         
         # 2. Mercado Categoria
-        # Tentar ler sem pular linhas primeiro (formato do modelo), se falhar ou vier vazio, tenta com skiprows
-        df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria")
-        if df_cat.empty or "Categoria" not in df_cat.columns:
-            df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
+        df_cat = pd.read_excel(file, sheet_name="Mercado_Categoria", skiprows=2)
         
         def find_col(df, possible_names):
             for col in df.columns:
@@ -225,10 +222,7 @@ def processar_excel(file):
                     count_cat += 1
                 
         # 3. Mercado Subcategoria (Suporte a dados mensais)
-        # Tentar ler sem pular linhas primeiro (formato do modelo)
-        df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria")
-        if df_sub.empty or ("Categoria" not in "".join(df_sub.columns) and "Subcategoria" not in "".join(df_sub.columns)):
-            df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
+        df_sub = pd.read_excel(file, sheet_name="Mercado_Subcategoria", skiprows=2)
         
         col_sub_cat = find_col(df_sub, ["Categoria"])
         col_sub_name = find_col(df_sub, ["Subcategoria"])
@@ -518,19 +512,6 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     uploaded_file = st.file_uploader("Arraste ou selecione sua planilha", type=["xlsx"], key="excel_uploader_v5", label_visibility="collapsed")
-    
-    # Botão de Download do Modelo
-    modelo_path = os.path.join(os.path.dirname(__file__), "modelo_planilha.xlsx")
-    if os.path.exists(modelo_path):
-        with open(modelo_path, "rb") as f:
-            st.download_button(
-                label="📥 Baixar Modelo de Planilha",
-                data=f,
-                file_name="modelo_inteligencia_mercado.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-    
     if uploaded_file is not None:
         if st.button("🚀 Processar Planilha", use_container_width=True):
             if processar_excel(uploaded_file):
