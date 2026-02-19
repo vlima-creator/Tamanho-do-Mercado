@@ -609,7 +609,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown(f"""
-    <div style="text-align: center; color: #A0A0A0; font-size: 0.75rem; padding: 10px 0;">
+    <div style="text-align: center; color: #A0A0A0; font-size: 0.9rem; padding: 10px 0;">
         Desenvolvido por Vinícius Lima<br>
         CNPJ: 47.192.694/0001-70
     </div>
@@ -1373,7 +1373,7 @@ with tab5:
 # --- RODAPÉ FINAL ---
 st.markdown("---")
 st.markdown(f"""
-<div style="text-align: center; color: #A0A0A0; font-size: 0.85rem; padding: 20px 0; margin-top: 40px; border-top: 1px solid #333;">
+<div style="text-align: center; color: #A0A0A0; font-size: 1rem; padding: 20px 0; margin-top: 40px; border-top: 1px solid #333;">
     Desenvolvido por <strong>Vinícius Lima</strong> | CNPJ: 47.192.694/0001-70
 </div>
 """, unsafe_allow_html=True)
