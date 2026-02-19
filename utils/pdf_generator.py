@@ -50,10 +50,11 @@ class PDFReportGenerator(FPDF):
             self.ln(10)
 
     def footer(self):
-        self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
+        self.set_y(-18)
+        self.set_font("Helvetica", "I", 7)
         self.set_text_color(self.light_text[0], self.light_text[1], self.light_text[2])
-        self.cell(0, 10, f"Página {self.page_no()}/{{nb}}", 0, 0, "C")
+        self.cell(0, 5, "Desenvolvido por Vinícius Lima | CNPJ: 47.192.694/0001-70", 0, 1, "C")
+        self.cell(0, 5, f"Página {self.page_no()}/{{nb}}", 0, 0, "C")
 
     def section_title(self, title):
         self.ln(5)

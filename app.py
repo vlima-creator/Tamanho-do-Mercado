@@ -606,6 +606,14 @@ with st.sidebar:
                 st.warning("É necessário ter subcategorias cadastradas para gerar o relatório.")
         else:
             st.warning("Adicione dados do cliente antes de gerar o relatório.")
+    
+    st.markdown("---")
+    st.markdown(f"""
+    <div style="text-align: center; color: #A0A0A0; font-size: 0.75rem; padding: 10px 0;">
+        Desenvolvido por Vinícius Lima<br>
+        CNPJ: 47.192.694/0001-70
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- CONTEÚDO PRINCIPAL ---
 
@@ -1361,3 +1369,11 @@ with tab5:
                     insight = f"📉 **Cuidado**: Este cenário reduziria seu lucro em R$ {format_br(abs(delta_lucro))}. Revise a estratégia."
                 
                 st.info(insight)
+
+# --- RODAPÉ FINAL ---
+st.markdown("---")
+st.markdown(f"""
+<div style="text-align: center; color: #A0A0A0; font-size: 0.85rem; padding: 20px 0; margin-top: 40px; border-top: 1px solid #333;">
+    Desenvolvido por <strong>Vinícius Lima</strong> | CNPJ: 47.192.694/0001-70
+</div>
+""", unsafe_allow_html=True)
